@@ -10,10 +10,11 @@ What concrete outcome should this task produce, and why is it needed?
 
 Identify relevant files, issues, accepted decisions, current behavior, and any prior evidence. Instruct the agent to read `AGENTS.md` and applicable directory instructions before editing.
 
-Identify the affected command (`rotorcrypt`, `sealcrypt`, `morselink`, or `er-demo`),
-browser operation, or repository tooling. For data-path work, state the cipher
-mode/Morse profile and whether input arrives as complete text, a file, streaming
-stdin, WAV, or live PCM. Browser and terminal demos currently use the rotor cipher.
+Identify the affected command (`rotorcrypt`, `sealcrypt`, `morselink`, `audiolink`, or `er-demo`),
+browser operation, or repository tooling. For data-path work, state the cipher,
+transport, mode/profile and whether input arrives as complete text, a file,
+streaming stdin, WAV, or live PCM. Browser and terminal demos select either cipher
+and transport independently.
 
 ## Scope
 
@@ -25,7 +26,8 @@ stdin, WAV, or live PCM. Browser and terminal demos currently use the rotor ciph
 
 For cipher or transport changes, include CLI and wire compatibility requirements.
 Read `docs/PROTOCOL.md` for the rotor protocol, `docs/SEALCRYPT.md` for authenticated
-records, and `docs/ARCHITECTURE.md` for shared-code and transport boundaries.
+records, `docs/AUDIOLINK.md` for packet audio, and `docs/ARCHITECTURE.md` for
+shared-code and transport boundaries.
 
 ## Acceptance criteria
 
@@ -41,8 +43,8 @@ Specify the commands, scenarios, or review evidence needed to establish acceptan
 
 Use `make sync` to install locked dependencies. Full browser lifecycle coverage
 also needs Node.js 18+. Run `make demo` after data-path changes; it verifies the
-rotor pipeline, so sealcrypt changes additionally need their own checked/raw
-round trips. Select relevant failures such as invalid input, damaged/missing
+default rotor/Morse pipeline; verify every affected cipher/transport combination
+and its checked/raw behavior. Select relevant failures such as invalid input, damaged/missing
 records, authentication failure, truncated EOF, broken pipes, or audio
 discontinuities. Record skipped checks explicitly. Keep offline/mock evidence
 separate from physical audio and human-keying acceptance in `docs/VALIDATION.md`.

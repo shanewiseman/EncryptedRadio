@@ -15,7 +15,10 @@ Both checked protocols report loss, corruption, duplication, and reordering, val
 For rotor checked blocks, verification means format and CRC checks, not proof of
 authenticity. For `sealcrypt`, both modes require the authentication tag to verify;
 the choice of mode changes buffering and recovery, not whether authentication is
-enabled. Both endpoints must select the same cipher and mode. See the
+enabled. Both endpoints must select the same cipher and mode. Transport selection
+adds no authentication: `audiolink` error-correcting codes and CRC32 protect against
+accidental damage, and an attacker can regenerate them. The audio transport never
+receives the cipher key. See the
 [mode comparison](docs/USAGE.md#raw-and-checked-modes).
 
 The assets are plaintext, private rotor settings, shared encryption keys, and locally generated recordings. Their relevant boundaries are:
@@ -23,13 +26,13 @@ The assets are plaintext, private rotor settings, shared encryption keys, and lo
 - **Local files and processes:** private configurations and plaintext are visible to the invoking account and processes able to access their files, memory, terminal, or command-line arguments. The application does not defend against a compromised computer or another process running as the same user.
 - **The symbol/audio channel:** session identifiers, sequence numbers, lengths, public machine fingerprints, timing, and ciphertext are exposed. The rotor checked protocol additionally exposes plaintext CRCs; `sealcrypt` does not transmit them. Acoustic transmissions can be recorded. No traffic-analysis protection is claimed.
 - **An active sender or attacker:** `rotorcrypt` cannot prevent message injection, modification or forgery. `sealcrypt` authenticates each record against parties without the key, but shared-key possession does not identify an individual sender. Neither protocol prevents replay of a complete valid recording to a fresh receiver, denial of service, or deliberate suppression of messages. The 64-session in-memory duplicate caches are bounded stream bookkeeping, not durable replay prevention. A checked receiver may release intact later records after reporting missing content.
-- **The local browser demo:** browser input and imported rotor key settings are passed to a local Python process. The browser and `er-demo` continue to demonstrate the rotor cipher; they do not expose `sealcrypt`. The demo is a trusted local tool, not a multi-user service or a remotely deployable application.
+- **The local browser demo:** browser input and imported rotor or seal keys are passed to a local Python process. Both cipher implementations and both audio transports are available. Generated seal demo keys stay in process/browser memory and are not included in result artifacts; anyone able to inspect that memory or the local requests can access them. The demo is a trusted local tool, not a multi-user service or a remotely deployable application.
 
 `sealcrypt keygen` generates random shared keys locally, but there is no identity system, authenticated key exchange, managed key distribution/rotation/revocation, forward secrecy, or secure deletion. Key holders must share keys through a separately trusted channel. Compromise of a shared key permits decryption of recorded sessions that used it. Production deployment requires review of the application protocol and its operational threat model.
 
 ## Public examples and private data
 
-The [example key](examples/example-key.json), bundled key resource, example rotor catalog, and test settings are intentionally public. Demo defaults use these public values. `rotorcrypt` requires explicit machine and key paths so command-line users choose their settings deliberately; selecting the example file still uses a public key.
+The [example key](examples/example-key.json), bundled key resource, example rotor catalog, and test settings are intentionally public. Rotor demo defaults use these public values. Seal demos instead generate an ephemeral random key unless a key is supplied; retain a separately protected key if another process must decrypt the recording. Restarting/reloading a demo can replace its ephemeral key. `rotorcrypt` requires explicit machine and key paths so command-line users choose their settings deliberately; selecting the example file still uses a public key.
 
 `sealcrypt` also requires explicit machine and key paths. Generate a fresh private key with `sealcrypt keygen --key secrets/seal-key.json`; it creates a mode-0600 file, creates missing parent directories with mode 0700, and refuses to overwrite an existing path. It does not print key material. Do not use public test fixtures as private keys or substitute a password for the required random key bytes.
 

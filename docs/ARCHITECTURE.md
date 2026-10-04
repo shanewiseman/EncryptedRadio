@@ -13,7 +13,9 @@ flowchart LR
     A --> C[ASCII symbols]
     S --> C
     C --> B[Morse synthesis]
+    C --> K[Packet AFSK synthesis]
     B --> W[WAV or mono audio]
+    K --> W
     W --> D[Shared PCM decoder]
     D --> R[ASCII symbols]
     R --> F[Frame validation + rotor cipher + codec]
@@ -36,17 +38,32 @@ flowchart LR
 | `morse.py` | ITU symbol table and profile character rules |
 | `audio.py` | Synthesis, spectral acquisition, filtering, timing, WAV adapters |
 | `live_audio.py` | PortAudio devices; callbacks and bounded queues |
-| `morse_cli.py` | Exclusive TX/RX CLI; text/PCM adapters |
+| `morse_cli.py` | Exclusive Morse TX/RX CLI; text/PCM adapters |
+| `packet_audio.py` | Packet AFSK framing, coding, synthesis, acquisition and PCM/WAV decoding |
+| `audiolink_cli.py` | Compatible packet audio TX/RX CLI, text/WAV/device adapters |
+| `pipeline.py` | Cipher/transport selection and shared codec factories |
 | `demo.py` | Real PCM round trips, seeded noise and removed PCM spans, reports |
 | `web.py`, `static/` | Loopback HTTP/WebSocket service and browser presentation |
 
+Both cipher APIs and CLIs default to `text_encoding="lowercase-first"` and accept
+`"uppercase-first"` for the previous behavior (`"ascii"` remains an alias).
+The CLI shorthand `--uppercase-first` selects that override. Lowercase-first is
+a reversible ASCII case swap: rotorcrypt
+applies it inside its escape codec, retaining checked CRCs over original user
+bytes; sealcrypt swaps immediately before encryption and after authentication,
+with no byte-count savings. Checked rotor flags and authenticated seal flags
+identify the selected encoding, and receivers reject a mismatch. Raw rotor has
+no marker; both endpoints must select it explicitly. No transport changes are
+needed. Existing recordings using the previous default require uppercase-first
+at reception. See [ADR 0006](decisions/0006-default-lowercase-first.md).
+
 Each cipher owns its framing and recovery. `sealcrypt` accepts the same public
 machine JSON as authenticated context, with a distinct shared-key format; it does
-not use rotor wiring to encrypt. It encrypts all 128 ASCII byte values directly,
-without the rotor codec's escaping. Its records use Morse-compatible Base32 and the
+not use rotor wiring to encrypt. It encrypts all 128 ASCII byte values without
+the rotor codec's escaping. Its records use Morse-compatible Base32 and the
 same acquisition prefix and delimiters, so `morselink` needs no changes. Both ends
-of a transfer must use the same cipher and mode; the distinct versioned packets and
-private key formats are not interchangeable. A replacement transport carries ordered
+of a transfer must use the same cipher, mode and text encoding; the distinct
+versioned packets and private key formats are not interchangeable. A replacement transport carries ordered
 ASCII symbols, signals failure and preserves streaming operation. It does not need
 access to the key or cipher state. CLI stdout is payload-only.
 
@@ -87,6 +104,15 @@ hysteresis and estimates dot duration from short/long pulse observations. The
 `--wpm`; the decoder does not guess from language. WAV and live audio share
 `MorseDecoder`.
 
+`audiolink` carries the ASCII stream in independently decodable packets with
+sequence metadata, forward error correction, CRC32 and an explicit end packet.
+Continuous-phase AFSK uses 1,200/2,200 Hz tones at 1,200 bits/s. Its payload rate is
+lower after packet/coding overhead. Packet validation precedes payload release;
+checked reception reports corruption/loss with the reserved `?` marker so the
+cipher can invalidate a partial record and recover at a later opening delimiter.
+Raw reception fails on detected transport errors. Packet checks do not authenticate
+ciphertext. See [AUDIOLINK.md](AUDIOLINK.md) for the wire format and channel target.
+
 Live audio queues hold at most two seconds. Callbacks transfer samples without
 pipe I/O. Backpressure that causes capture loss is an explicit discontinuity.
 Checked/text reception emits `?` on detected uncertainty; raw reception fails.
@@ -94,9 +120,24 @@ EOF drains TX; microphone RX runs until stopped.
 
 ## Browser boundary
 
-The browser and terminal `er-demo` interfaces remain rotor demonstrations. They use
-the shared rotor and DSP modules; `sealcrypt` is a separate CLI/library and has no
-independent browser implementation.
+The browser and terminal `er-demo` interfaces select `rotorcrypt` or `sealcrypt`
+independently of `morselink` or `audiolink`. Shared factories create the same Python
+cipher and DSP implementations used by the CLIs; JavaScript handles presentation
+and PCM I/O. The defaults remain rotorcrypt and Morse. Text mode bypasses the
+cipher and uses the selected transport's ordinary text normalization.
+
+Text encoding is passed through the shared factories for offline round trips,
+WAV imports and live sending/receiving, including appended streaming input and
+transmission-duration preparation. The browser changes no case itself. Plain text
+mode disables this cipher setting and rejects an explicit lowercase-first
+selection at the API. Omitted encoding in text mode uses the ordinary transport's
+existing uppercase normalization, and switching back restores the cipher choice.
+
+Rotor settings and seal keys have separate schemas. A seal demonstration generates
+a random in-memory key unless one is provided. The configuration API supplies a
+fresh seal demo key; an explicit generation route can replace it. Key JSON imports
+are data only. Keys never appear in reports or downloadable job artifacts, and the
+frontend does not persist them in browser storage.
 
 The service binds to loopback, validates Host/Origin, serves local assets and
 accepts configurations as JSON data. Uploaded configuration cannot name a server
@@ -104,6 +145,20 @@ path. An in-memory browser session identifier permits one active WebSocket
 operation. Mono float32 PCM uses binary messages; JSON carries control/results.
 AudioWorklet reports the actual AudioContext sample rate. Queues, uploads, input
 and duration have explicit limits.
+
+The finite acoustic round trip is one WebSocket operation with separate transmit
+and receive state and independent PCM credits. It uses the same selected cipher,
+transport, mode, configuration, key and text encoding in both directions. The
+browser requests microphone access after the explicit action, arms capture before
+Play, and schedules generated PCM to the speaker while forwarding only captured
+microphone PCM to the Python receiver. Microphone audio is never monitored through
+the speaker. After playback drains, capture continues for one second measured by
+the AudioContext clock, then flushes queued samples before receiver EOF. Exact
+recovered bytes are compared with the original input; text mode compares with the
+transport-normalized input. Empty messages, including text that normalizes to
+empty, are rejected. Stop/disconnect cancels both
+directions and frees their resources. Ordinary TX and RX remain separate operations,
+and streaming input remains a TX-only option.
 
 Offline results and microphone results occupy distinct UI areas. WAV artifacts
 reside in temporary job directories and stream to clients. Keys stay in memory;
@@ -116,5 +171,6 @@ against malicious software on the same computer.
 The lockfile fixes dependency versions. `make check` runs hygiene and application
 tests; `make demo` exercises the data path. GitHub retains the required job name and
 branch policy. See [VALIDATION.md](VALIDATION.md), [SECURITY.md](../SECURITY.md), and
-the complementary decisions [ADR 0002](decisions/0002-rotor-morse-suite.md) and
-[ADR 0003](decisions/0003-authenticated-sealcrypt.md).
+the complementary decisions [ADR 0002](decisions/0002-rotor-morse-suite.md),
+[ADR 0003](decisions/0003-authenticated-sealcrypt.md), and
+[ADR 0004](decisions/0004-packet-audio-and-composable-demos.md).

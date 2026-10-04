@@ -42,8 +42,12 @@ Link relevant issues, pull requests, specifications, or research.
 - [0001: Prompt-driven development](0001-ai-assisted-development.md) — Accepted.
 - [0002: Rotor cipher, replaceable Morse transport, and working demos](0002-rotor-morse-suite.md) — Accepted.
 - [0003: Authenticated replacement cipher command](0003-authenticated-sealcrypt.md) — Accepted.
+- [0004: Packet audio and composable demonstrations](0004-packet-audio-and-composable-demos.md) — Accepted.
+- [0005: Optional lowercase-first encoding](0005-lowercase-first-encoding.md) — Defaults superseded by ADR 0006; wire encoding retained.
+- [0006: Lowercase-first by default](0006-default-lowercase-first.md) — Accepted.
 
-ADRs 0002 and 0003 are complementary: the rotor application and its terminal/browser
-demonstrations remain implemented, while `sealcrypt` adds a separate authenticated
-CLI and protocol over the same transport. ADR 0003 does not retroactively add
-authentication to rotor ciphertext or replace the original decision record.
+ADRs 0002, 0003 and 0004 are complementary. The rotor and Morse implementations
+remain available. Sealcrypt adds its own authenticated protocol; audiolink adds a
+separate packet audio transport. The terminal and browser select either cipher
+and transport without changing their security properties. Later additions do not
+retroactively authenticate rotor ciphertext or rewrite the original decisions.

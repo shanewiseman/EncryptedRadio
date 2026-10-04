@@ -33,17 +33,34 @@ The bounded recent-session cache only handles repeats within a running receiver.
 ## Interface and compatibility
 
 The `encrypt` and `decrypt` operations accept the same options as `rotorcrypt`:
-`--machine`, `--key`, `--mode checked|raw`, `--text`, `--input`, `--block-size`
+`--machine`, `--key`, `--mode checked|raw`, `--uppercase-first`,
+`--text-encoding lowercase-first|uppercase-first|ascii`,
+`--text`, `--input`, `--block-size`
 and `--idle-seconds`. Text and input-file options are mutually exclusive; omitted
 input means an open streaming stdin. All 128 ASCII byte values, including NUL and
 newlines, round-trip exactly. Non-ASCII plaintext is rejected. Stdout is payload
 only, stderr is diagnostics, and available output is flushed. Broken pipes and
 interrupts have controlled exits. Terminal line buffering still applies.
 
+`lowercase-first` is the default. It swaps ASCII letter case before encryption
+and reverses the swap only after record authentication succeeds. All original
+bytes and capitalization are recovered. Use the same setting on both ends;
+records carry an authenticated encoding flag and a mismatch is rejected. Older
+receivers reject the new flag. Use `--uppercase-first` on both ends to select the
+previous behavior; older default recordings require this flag at decryption.
+`--text-encoding uppercase-first` is equivalent, and `ascii` remains an alias for
+that choice. The shorthand and `--text-encoding` cannot be used together. Key
+generation works without an encoding selection and rejects explicit encoding options.
+
+Unlike rotorcrypt, sealcrypt does not escape individual ASCII bytes, so
+lowercase-first **does not reduce its ciphertext length**. It is available for a
+consistent cipher interface; it adds no security. Both transports carry its
+ciphertext unchanged. See the [encoding comparison](USAGE.md#text-encoding).
+
 `--machine` accepts the same public machine JSON, validates it, and binds its
 canonical full SHA-256 digest into key derivation and authentication. Rotor wiring
 is not used as an encryption primitive. Both ends must supply the same machine,
-shared key and mode. Public machine data supplies context, not a secret; the
+shared key, mode and text encoding. Public machine data supplies context, not a secret; the
 random key supplies the secret.
 `--key` uses the new key format below; rotor settings are deliberately rejected.
 
@@ -102,8 +119,25 @@ unsupported versions or algorithms are rejected. Key generation changes only
 newly created directories and files, not permissions on existing parent directories.
 Keep keys under ignored `secrets/`; copying a key file does not encrypt it at rest.
 
-The existing browser and `er-demo` rotor controls continue to demonstrate the rotor
-cipher. This addition supplies a separate CLI and shared Python implementation.
+Both the browser and terminal `er-demo` can select `sealcrypt` with either audio
+transport. For example:
+
+```sh
+er-demo roundtrip --cipher sealcrypt --transport audiolink --output-dir tmp/demo-sealed-afsk
+er-demo roundtrip --cipher sealcrypt --transport morselink --key secrets/seal-key.json
+```
+
+Omitting `--key` in a seal demo generates an ephemeral random key held only in
+memory. The browser also generates a fresh in-memory key and offers generation
+and JSON import controls. Keys are not included in downloaded job artifacts and
+are not stored in browser local storage. Use/import the same separately saved
+key for external reception or later WAV decoding; the generated demo key does
+not survive a server/browser restart as a durable key store. Cipher selection
+does not select the text encoding; choose that separately at both endpoints.
+
+Substitute `audiolink` for `morselink` at both ends of the examples above to use
+packet audio. See [AUDIOLINK.md](AUDIOLINK.md) for its separate wire format and
+voice-band assumptions. The transport does not receive the shared encryption key.
 
 ## Protocol v1
 
@@ -115,7 +149,7 @@ checked reception to resynchronize. The binary header uses network byte order:
 | --- | --- | --- |
 | 0 | 2 | Magic `SC` |
 | 2 | 1 | Version 1 |
-| 3 | 1 | Flags: checked data 0/end 1; raw data 2/end 3 |
+| 3 | 1 | Flags: bit `0x01` is end, `0x02` is raw mode, `0x04` is lowercase-first encoding; all other bits are rejected |
 | 4 | 32 | Random session ID and HKDF salt |
 | 36 | 4 | Sequence number, initially zero |
 | 40 | 2 | Plaintext byte count: data 1–256, end zero |
@@ -124,8 +158,11 @@ checked reception to resynchronize. The binary header uses network byte order:
 
 The header is `struct.Struct("!2sBB32sIH8s")`. The complete packet is at most
 322 bytes, or 516 Base32 characters (521 symbols with the preamble and delimiters).
-Plaintext ASCII bytes are encrypted directly; there is no escape encoding,
-plaintext CRC, or secret-derived public fingerprint.
+There is no escape encoding, plaintext CRC, or secret-derived public fingerprint.
+Uppercase-first encrypts original ASCII bytes directly; default lowercase-first
+swaps ASCII letter case first without changing byte count. Flags `0`–`3` retain their original
+meanings; lowercase-first uses checked data/end `4`/`5` and raw data/end `6`/`7`.
+This extends the version-1 flags without changing the packet layout.
 
 Canonical machine JSON uses the validated version-1 fields, sorted keys, compact
 separators and ASCII escaping, as in the [rotor protocol](PROTOCOL.md). Its full
@@ -141,7 +178,8 @@ ASCII("EncryptedRadio/sealcrypt/v1") || 0x00 || mode_byte || machine_digest[32]
 
 The mode byte is 0 for checked, 1 for raw. Each record's 12-byte nonce is eight zero
 bytes followed by its four-byte sequence. Associated data is the exact 50-byte
-header followed by the full machine digest. Sequence numbers never wrap: the last
+header followed by the full machine digest, authenticating the encoding flag as
+well as the mode and other fields. Sequence numbers never wrap: the last
 number `0xFFFFFFFF` is reserved for an end record. A new process uses a fresh random
 session salt; no user-supplied nonce/session override is exposed. Security depends
 on avoiding session-salt repetition under the same master key and context.

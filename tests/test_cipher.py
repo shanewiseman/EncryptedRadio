@@ -41,7 +41,8 @@ class CipherTests(unittest.TestCase):
         encoded = encode_ascii(original)
         self.assertTrue(set(encoded) <= set(ALPHABET))
         self.assertEqual(decode_ascii(encoded), original)
-        self.assertEqual(encode_ascii(b"A +a\x00"), "A+20+2B+61+00")
+        self.assertEqual(encode_ascii(b"A +a\x00"), "+61+20+2BA+00")
+        self.assertEqual(encode_ascii(b"A +a\x00", text_encoding="uppercase-first"), "A+20+2B+61+00")
         for size in (1, 2, 3, 17, 128):
             decoder = ASCIIDecoder()
             actual = b"".join(decoder.feed(encoded[i:i+size]) for i in range(0, len(encoded), size))
@@ -147,7 +148,7 @@ class CipherTests(unittest.TestCase):
             self.assertEqual(actual, data)
             self.assertEqual(decoder.errors, [])
             self.assertTrue(decoder.complete)
-        biggest = frames(encrypt_bytes(b"a"*256, self.machine, self.key, block_size=256))[0]
+        biggest = frames(encrypt_bytes(b"A"*256, self.machine, self.key, block_size=256))[0]
         self.assertEqual(len(biggest)-5, MAX_BODY)
 
     def test_no_plaintext_before_full_validated_block(self):
@@ -165,7 +166,7 @@ class CipherTests(unittest.TestCase):
         parts = frames(encrypt_bytes(original, self.machine, self.key, block_size=4))
         cases = [
             (parts[0] + parts[2] + parts[3], b"AAAACCCC"),
-            (parts[0] + parts[1].replace(parts[1][12], "?", 1) + parts[2] + parts[3], b"AAAACCCC"),
+            (parts[0] + parts[1][:12] + "?" + parts[1][13:] + parts[2] + parts[3], b"AAAACCCC"),
             (parts[0] + parts[0] + "".join(parts[1:]), original),
             (parts[1] + parts[0] + parts[2] + parts[3], b"BBBBCCCC"),
             (parts[0] + parts[1][:20] + parts[2] + parts[3], b"AAAACCCC"),
@@ -254,12 +255,12 @@ class CipherTests(unittest.TestCase):
         self.assertTrue(decoder.complete)
         parts = frames(encrypt_bytes(b"AB", self.machine, self.key))
         # A data-bearing frame cannot masquerade as an end marker.
-        malformed = rewrite_frame(parts[0], lambda packet: packet.__setitem__(3, 1))
+        malformed = rewrite_frame(parts[0], lambda packet: packet.__setitem__(3, packet[3] | 1))
         result = decrypt_text(malformed + parts[1], self.machine, self.key)
         self.assertEqual(result.plaintext, b"")
         self.assertTrue(any("end frame" in e for e in result.errors))
         # Conversely an empty end frame cannot masquerade as data.
-        malformed = rewrite_frame(parts[1], lambda packet: packet.__setitem__(3, 0))
+        malformed = rewrite_frame(parts[1], lambda packet: packet.__setitem__(3, packet[3] & ~1))
         result = decrypt_text(parts[0] + malformed, self.machine, self.key)
         self.assertFalse(result.complete)
         self.assertTrue(any("lengths" in e for e in result.errors))

@@ -96,11 +96,11 @@ class MorseEncoder:
             yield from self._segment(1, False)
 
 
-def estimate_duration(text, settings=None, profile="checked"):
+def estimate_duration(text, settings=None, profile="checked", *, finish=True):
     settings = settings or AudioSettings()
     if profile not in PROFILES:
         raise ValueError("unknown Morse profile")
-    samples = round(1.2 / settings.wpm * settings.sample_rate)
+    samples = round(1.2 / settings.wpm * settings.sample_rate) if finish else 0
     previous = False
     gap = False
     for character in text:

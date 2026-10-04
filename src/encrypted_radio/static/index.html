@@ -14,7 +14,7 @@
   </header>
   <main>
     <section class="intro">
-      <div><p class="eyebrow">TEXT → ROTORS → SOUND → TEXT</p><h1>Make a message audible.</h1><p class="lede">Explore a configurable rotor machine, send its output as Morse, and recover the message through the real audio decoder.</p></div>
+      <div><p class="eyebrow">TEXT → ENCRYPTION → SOUND → TEXT</p><h1>Make a message audible.</h1><p class="lede">Choose your encryption and audio transport independently, then recover the message through the real audio decoder.</p></div>
       <div class="signal-art" aria-hidden="true"><i></i><i></i><i></i><b></b><i></i><b></b><i></i><i></i><b></b><i></i><i></i></div>
     </section>
     <div class="workspace">
@@ -24,17 +24,34 @@
         <textarea id="plaintext" rows="5" maxlength="512" spellcheck="false">Hello, radio!
 </textarea>
         <p class="field-note">ASCII only. Cipher modes preserve case, punctuation, spaces, and newlines.</p>
-        <div class="columns three">
-          <div><label for="mode">Mode</label><select id="mode"><option value="checked">Checked cipher</option><option value="raw">Raw cipher</option><option value="text">Plain Morse</option></select></div>
-          <div><label for="scenario">Offline channel</label><select id="scenario"><option value="clean">Clean signal</option><option value="noisy">Noisy signal</option><option value="lost-block">Lost block</option></select></div>
-          <div><label for="wpm">Speed <span class="unit">WPM</span></label><input id="wpm" type="number" value="20" min="8" max="30" step="1"></div>
+        <fieldset id="configuration" class="configuration">
+        <legend class="sr-only">Cipher and audio configuration</legend>
+        <div class="columns two">
+          <div><label for="cipher">Encryption</label><select id="cipher" aria-describedby="cipher-note"><option value="rotorcrypt">rotorcrypt · experimental rotors</option><option value="sealcrypt">sealcrypt · authenticated encryption</option></select></div>
+          <div><label for="transport">Audio transport</label><select id="transport" aria-describedby="transport-note"><option value="morselink">morselink · international Morse</option><option value="audiolink">audiolink · voice-band AFSK</option></select></div>
         </div>
-        <div class="columns three audio-settings">
+        <p id="cipher-note" class="field-note">Rotor encryption is experimental. Checked mode detects accidental damage; it does not authenticate messages.</p>
+        <div class="columns two">
+          <div><label for="mode">Mode</label><select id="mode"><option value="checked">Checked cipher</option><option value="raw">Raw cipher</option><option value="text">Plain text · no encryption</option></select></div>
+          <div><label for="scenario">Offline channel</label><select id="scenario"><option value="clean">Clean signal</option><option value="noisy">Noisy signal</option><option value="lost-block">Lost block</option></select></div>
+        </div>
+        <p id="mode-note" class="field-note">Checked blocks report missing content and can recover later intact blocks.</p>
+        <label for="text-encoding">Text encoding</label>
+        <select id="text-encoding" aria-describedby="encoding-note"><option value="lowercase-first">Lowercase-first (default)</option><option value="uppercase-first">Uppercase-first (legacy)</option></select>
+        <p id="encoding-note" class="field-note">Both encodings preserve exact case. Lowercase-first shortens lowercase-heavy rotor messages. Match this setting at both ends.</p>
+        <div id="morse-settings" class="audio-settings">
+        <div class="columns two">
+          <div><label for="wpm">Morse speed <span class="unit">WPM</span></label><input id="wpm" type="number" value="20" min="8" max="30" step="1"></div>
           <div><label for="frequency">Pitch <span class="unit">Hz</span></label><input id="frequency" type="number" value="700" min="400" max="1200" step="10"></div>
+        </div>
+        <div class="columns two receiver-settings">
           <div><label for="rx-frequency">Receive pitch <span class="unit">Hz</span></label><input id="rx-frequency" type="number" min="400" max="1200" placeholder="Automatic"></div>
           <div><label for="rx-wpm">Receive speed <span class="unit">WPM</span></label><input id="rx-wpm" type="number" min="8" max="30" placeholder="Automatic"></div>
         </div>
-        <details class="machine-config">
+        </div>
+        <p id="transport-note" class="field-note">International Morse with automatic receive pitch and speed, or explicit overrides above.</p>
+        <div id="afsk-settings" class="transport-summary" hidden><strong>1,200 bit/s AFSK</strong><span>1,200 / 2,200 Hz tones · packet checks · half duplex</span><p class="field-note">Designed for a voice-band audio channel. Offline results do not establish compatibility with a physical radio.</p></div>
+        <details id="rotor-config" class="machine-config">
           <summary>Rotor machine <span id="rotor-summary">Loading example configuration…</span></summary>
           <p class="field-note">Public demonstration settings. Never use this experimental cipher for sensitive communications.</p>
           <div class="rotor-heading"><span>Order: left → right</span><button id="add-rotor" type="button" class="small">+ Add rotor</button></div>
@@ -42,9 +59,23 @@
           <label for="plugboard">Plugboard pairs <span class="unit">10–16 disjoint cables</span></label>
           <input id="plugboard" type="text" spellcheck="false" aria-describedby="plugboard-help">
           <p id="plugboard-help" class="field-note">Separate two-character pairs with spaces. Positions and rings are zero-based alphabet indices (0–48).</p>
-          <div class="columns two imports"><label class="file-label">Import machine JSON<input id="machine-file" type="file" accept=".json,application/json"></label><label class="file-label">Import key JSON<input id="key-file" type="file" accept=".json,application/json"></label></div>
-          <p class="field-note">Configuration stays in this session. Nothing is stored in your browser.</p>
+          <div class="imports"><label class="file-label">Import rotor key JSON<input id="key-file" type="file" accept=".json,application/json"></label></div>
         </details>
+        <details id="seal-config" class="machine-config" open hidden>
+          <summary>Authenticated encryption <span>ChaCha20-Poly1305</span></summary>
+          <p class="field-note">Both ends need the same random 256-bit shared key and public machine configuration. Raw and checked modes both authenticate records. This application protocol is unaudited.</p>
+          <label for="seal-key">Shared key <span class="unit">64 hexadecimal digits</span></label>
+          <div class="key-entry"><input id="seal-key" type="password" autocomplete="off" spellcheck="false" maxlength="64" aria-describedby="seal-key-note"><button id="reveal-key" type="button" class="small" aria-pressed="false">Show</button></div>
+          <p id="seal-key-note" class="field-note">Generated locally for this page session. Keep a separate protected copy if you need to decrypt a recording after reloading.</p>
+          <div class="columns two imports"><button id="generate-key" type="button">Generate new key</button><label class="file-label">Import seal key JSON<input id="seal-key-file" type="file" accept=".json,application/json"></label></div>
+        </details>
+        <details class="machine-config context-config">
+          <summary>Public machine configuration <span>Shared cipher context</span></summary>
+          <p class="field-note">Defines the rotor catalog for rotorcrypt and authenticated public context for sealcrypt. Both endpoints must use the same JSON configuration.</p>
+          <label class="file-label">Import machine JSON<input id="machine-file" type="file" accept=".json,application/json"></label>
+        </details>
+        <p class="field-note">Keys stay in memory for this page session and are not included in result downloads. No persistent browser storage is used.</p>
+        </fieldset>
         <div class="actions"><button id="run" class="primary" type="button" disabled><span aria-hidden="true">↗</span> Run offline round trip</button><label class="upload-button">Decode a WAV<input id="wav-file" type="file" accept=".wav,audio/wav"></label></div>
         <p class="field-note">Offline processing is faster than playback and needs no audio hardware. WAV uploads: PCM16, 44.1 / 48 kHz, mono or stereo, up to 64 MiB.</p>
       </section>
@@ -53,14 +84,16 @@
           <div class="card-heading"><span class="step">02</span><h2 id="channel-title">Audio channel</h2><span id="channel-tag" class="tag">OFFLINE</span></div>
           <div class="duration"><span id="duration">—</span><small>TRANSMISSION DURATION</small></div>
           <div class="waveform" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
-          <audio id="playback" controls preload="none" aria-label="Play generated Morse audio"></audio>
-          <a id="download" class="download disabled" download="morse.wav" aria-disabled="true">↓ Download WAV</a>
+          <audio id="playback" controls preload="none" aria-label="Play generated transmission audio"></audio>
+          <a id="download" class="download disabled" download="transmission.wav" aria-disabled="true">↓ Download WAV</a>
           <p id="audio-note" class="field-note">Run a round trip to create a playable waveform.</p>
         </section>
         <section class="card live" aria-labelledby="live-title">
           <div class="card-heading"><h2 id="live-title">Try the hardware</h2><span class="tag outline">LIVE</span></div>
-          <p class="field-note">Transmit through your speakers or receive through your microphone. One direction at a time.</p>
-          <label class="check-label"><input id="streaming" type="checkbox"> Keep transmission open for more text</label>
+          <p class="field-note">Test your speakers and microphone together, or use either direction separately.</p>
+          <button id="live-acoustic" class="primary full" type="button" disabled>Acoustic round trip</button>
+          <p class="field-note">Send the current message through your speakers while the microphone listens. Playback starts after you press Play; reception finishes automatically and compares the captured message.</p>
+          <label class="check-label"><input id="streaming" type="checkbox"> Keep separate transmission open for more text</label>
           <div class="columns two"><button id="live-tx" type="button" disabled>Prepare transmission</button><button id="live-rx" type="button" disabled>Receive microphone</button></div>
           <button id="begin" class="primary full" type="button" hidden>Play transmission</button>
           <div id="stream-controls" hidden><label for="stream-text">Append to the open stream</label><textarea id="stream-text" rows="2" spellcheck="false"></textarea><div class="columns two"><button id="send-chunk" type="button">Send text</button><button id="end-stream" type="button">Finish stream</button></div></div>
@@ -79,7 +112,7 @@
       </div>
       <details id="diagnostics-wrap" hidden><summary>Decoder diagnostics</summary><pre id="diagnostics"></pre></details>
     </section>
-    <footer><p><strong>Experimental by design.</strong> Rotor encryption is not modern cryptographic security. Checksums detect accidental damage, not deliberate tampering.</p><span>LOCAL ONLY · NO CLOUD SERVICES</span></footer>
+    <footer><p><strong>Experimental by design.</strong> Rotorcrypt offers no modern cryptographic security. Sealcrypt authenticates records using a shared key; its application protocol is unaudited. Audio packet checks detect accidental damage.</p><span>LOCAL ONLY · NO CLOUD SERVICES</span></footer>
   </main>
 </body>
 </html>

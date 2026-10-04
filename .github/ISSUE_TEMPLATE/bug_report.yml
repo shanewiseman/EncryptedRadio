@@ -13,6 +13,7 @@ body:
         - rotorcrypt
         - sealcrypt
         - morselink
+        - audiolink
         - er-demo terminal
         - er-demo browser
         - Repository or CI
@@ -30,7 +31,7 @@ body:
     id: reproduce
     attributes:
       label: Reproduction
-      description: Include the commit, exact command or browser steps, input source (text/file/stdin/WAV/microphone), cipher mode and Morse profile, sanitized stderr and exit status. Never attach private keys.
+      description: Include the commit, exact command or browser steps, input source (text/file/stdin/WAV/microphone), cipher/transport selections and mode/profile, sanitized stderr and exit status. Never attach private keys.
     validations:
       required: true
   - type: textarea

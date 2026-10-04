@@ -84,8 +84,8 @@ class SealTests(unittest.TestCase):
         encoder = SealEncoder(self.machine, self.key, mode=mode, block_size=block_size)
         return encoder.feed(data) + encoder.finish()
 
-    def decode(self, symbols: str, *, key=None, machine=None, mode="checked"):
-        decoder = SealDecoder(machine or self.machine, key or self.key, mode=mode)
+    def decode(self, symbols: str, *, key=None, machine=None, mode="checked", text_encoding="lowercase-first"):
+        decoder = SealDecoder(machine or self.machine, key or self.key, mode=mode, text_encoding=text_encoding)
         plaintext = decoder.feed(symbols) + decoder.finish()
         return plaintext, decoder
 
@@ -96,13 +96,13 @@ class SealTests(unittest.TestCase):
             for name, a, b in (("A", 2, 1), ("B", 3, 2), ("C", 5, 3))}, "reflector": ALPHABET[::-1]})
         for mode in ("checked", "raw"):
             with self.subTest(mode=mode), patch("encrypted_radio.seal.secrets.token_bytes", return_value=SESSION):
-                encoder = SealEncoder(machine, self.key, mode=mode)
+                encoder = SealEncoder(machine, self.key, mode=mode, text_encoding="uppercase-first")
                 actual = encoder.feed(b"lowercase + \x00\n") + encoder.finish()
                 expected = (reference_frame(machine, b"lowercase + \x00\n", mode=mode)
                             + reference_frame(machine, b"", sequence=1, mode=mode, end=True))
                 self.assertEqual(frames(expected)[0], DATA_VECTORS[mode])
                 self.assertEqual(actual, expected)
-                decoder = SealDecoder(machine, self.key, mode=mode)
+                decoder = SealDecoder(machine, self.key, mode=mode, text_encoding="uppercase-first")
                 self.assertEqual(decoder.feed(expected) + decoder.finish(), b"lowercase + \x00\n")
                 self.assertTrue(decoder.complete)
                 self.assertEqual(decoder.errors, [])
@@ -268,7 +268,7 @@ class SealTests(unittest.TestCase):
                         reference_frame(self.machine, b"x", end=True), reference_frame(self.machine, b"x" * 257),
                         reference_frame(self.machine, b"x", sequence=MAX_SEQUENCE)):
             with self.subTest(invalid=invalid[:40]):
-                plaintext, decoder = self.decode(invalid)
+                plaintext, decoder = self.decode(invalid, text_encoding="uppercase-first")
                 self.assertEqual(plaintext, b"")
                 self.assertTrue(decoder.errors)
         # Empty end envelope is 66 bytes: four final pad bits must be zero.

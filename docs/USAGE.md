@@ -49,6 +49,60 @@ separate from payload. Terminals usually buffer until
 Enter; use a producer writing a pipe for character-at-a-time input. Avoid `echo`
 when an extra newline is unwanted.
 
+## Text encoding
+
+Both cipher commands now use **lowercase-first by default** for encryption and
+decryption. Add **`--uppercase-first`** to select the previous behavior. The longer
+`--text-encoding uppercase-first` is equivalent; `--text-encoding ascii` remains
+a legacy alias. The shorthand and `--text-encoding` are mutually exclusive.
+
+Lowercase-first reversibly swaps ASCII letter case at the cipher boundary, so
+the recovered message retains its exact original capitalization, spaces and
+control bytes. This is different from converting the message to uppercase.
+
+For rotorcrypt, original lowercase letters then cost one symbol each and original
+uppercase letters cost three. The example `This message is encrypted using wwii technology`
+shrinks from 139 to 61 raw ciphertext symbols; spaces still cost three each.
+Uppercase-heavy text may grow. Sealcrypt also accepts the option and preserves
+case, but gains no size reduction because it encrypts bytes without escaping.
+
+Select the same encoding when encrypting and decrypting, including uploaded WAVs
+and live reception. Checked rotor frames and both seal modes carry an encoding
+flag and reject a mismatched selection. Older receivers reject lowercase-first
+frames. **Raw rotor streams have no encoding marker and cannot detect a mismatch**;
+use `--uppercase-first` for recordings made with the previous default, including
+existing raw ciphertext. An explicit `--text-encoding lowercase-first` still works
+for recordings made with that option. The setting does not change either audio
+transport or add encryption to plain text mode.
+
+For example, using the public demonstration rotor key:
+
+```sh
+set -o pipefail
+mkdir -p tmp
+rotorcrypt encrypt --mode raw \
+  --machine examples/machine.json --key examples/example-key.json \
+  --text 'This message is encrypted using wwii technology' \
+  | morselink tx --profile raw --output-wav tmp/lowercase.wav
+morselink rx --profile raw --input-wav tmp/lowercase.wav \
+  | rotorcrypt decrypt --mode raw \
+      --machine examples/machine.json --key examples/example-key.json
+```
+
+This example needs no encoding flag and uses 61 raw ciphertext symbols. To use
+the original uppercase-first encoding, add `--uppercase-first` to **both** cipher
+commands; the same example then uses 139 raw symbols. The receiver never infers
+the selected encoding from the message's apparent capitalization.
+
+Use the same override with `sealcrypt` and its separate key. Either pipeline can
+use `audiolink` at both ends instead of `morselink`. Neither transport needs a
+text-encoding option. The browser's **Text encoding** selector starts at
+**Lowercase-first (default)**; choose **Uppercase-first (legacy)** for older default
+recordings. `er-demo roundtrip` also defaults to lowercase-first and accepts
+`--uppercase-first`. The shared Python code handles encryption and decryption.
+Plain text mode keeps its existing transport normalization and does not accept an
+explicit lowercase-first selection.
+
 ## Raw and checked modes
 
 Raw and checked describe streaming and recovery behavior; the selected cipher
@@ -68,15 +122,21 @@ Checked mode is the default. Both ciphers flush checked encryption at
 `--block-size` caps record size without waiting for a full block. Pauses never
 reset either cipher's state; a partial rotor raw escape waits for more symbols.
 
-Both endpoints need matching cipher, mode, public machine configuration and the
-appropriate shared key. The same public machine JSON schema works with either
+Both endpoints need matching cipher, mode, text encoding, public machine
+configuration and the appropriate shared key. The same public machine JSON schema works with either
 cipher, but rotor and seal keys and wire formats are distinct. See the
 [rotor protocol](PROTOCOL.md) and [sealcrypt protocol](SEALCRYPT.md).
 
-For Morse pipelines, pair `--mode checked` with `morselink --profile checked`
-(both defaults), or pair `--mode raw` with `--profile raw` for both transmission
-and reception. `--profile text` is ordinary unencrypted Morse and normalizes case
-and whitespace; it is not an exact cipher transport.
+For either audio transport, pair cipher `--mode checked` with transport
+`--profile checked` (both defaults), or pair `--mode raw` with `--profile raw` for
+transmission and reception. `--profile text` bypasses encryption and normalizes
+case and whitespace; it is not an exact cipher transport. Both endpoints must use
+the same transport: Morse and packet AFSK waveforms are not interchangeable.
+
+The transport has its own buffering and framing. `audiolink` adds packets and
+error checks even in its raw profile; raw means stop on detected errors, not
+unframed PCM or removal of cipher authentication. Its error correction can repair
+bounded bit damage but does not reconstruct missing cipher records.
 
 Checked recovery does not reconstruct missing content. A finite decrypt command
 returns nonzero after corruption, loss, truncation or a missing end record, even
@@ -108,17 +168,47 @@ expecting language correction. `--frequency` selects a known tone;
 `--sample-rate` selects the live device rate. WAV reception uses the actual file
 rate and accepts mono uncompressed integer PCM.
 
+## Packet audio
+
+`audiolink` preserves the same `tx`, `rx`, `devices`, text/file/stdin, WAV, live
+sound device and profile interfaces. It uses fixed 1,200/2,200 Hz AFSK tones at
+1,200 bits/s; Morse `--frequency` and `--wpm` settings do not apply. The actual
+payload rate includes packet, coding and acquisition overhead. Default data
+packets hold up to 128 ASCII bytes and flush after 0.25 idle seconds or at EOF.
+Use `--packet-size` and `--idle-seconds` to change that buffering; it is separate
+from the cipher's own block size and idle timer. Packetized reception releases
+verified packets rather than one decoded character at a time.
+
+```sh
+audiolink devices
+audiolink tx --profile text --text 'HELLO WORLD' --output-wav tmp/hello-afsk.wav
+audiolink rx --profile text --input-wav tmp/hello-afsk.wav
+sealcrypt encrypt --machine examples/machine.json --key secrets/seal-key.json \
+  --input message.txt | audiolink tx --output-wav tmp/sealed-afsk.wav
+audiolink rx --input-wav tmp/sealed-afsk.wav \
+  | sealcrypt decrypt --machine examples/machine.json --key secrets/seal-key.json
+```
+
+WAV and microphone reception use the same Python decoder. Queue bounds, stderr
+separation, EOF draining and device errors follow the live-audio behavior above.
+The modem targets a conventional analog voice-audio path under declared synthetic
+channel assumptions; no handheld-radio interoperability has been established.
+See [AUDIOLINK.md](AUDIOLINK.md) for framing, controls and validation boundaries.
+
 ## Demonstrations
 
-`er-demo` and its browser rotor controls demonstrate `rotorcrypt`. Use the offline
-WAV pipeline in the [sealcrypt guide](SEALCRYPT.md) to exercise authenticated
-encryption through the same Morse encoder and audio decoder.
+`er-demo` and the browser select the cipher and transport independently. All four
+combinations use the actual Python cipher, audio encoder, audio decoder and
+plaintext verification. Omitting selections preserves the rotor/Morse default.
 
 ```sh
 make demo
 er-demo roundtrip --scenario noisy --output-dir tmp/demo-noisy
 er-demo roundtrip --scenario lost-block --output-dir tmp/demo-loss
 er-demo roundtrip --mode raw --text 'Mixed Case!' --output-dir tmp/demo-raw
+er-demo roundtrip --cipher sealcrypt --transport audiolink --output-dir tmp/demo-sealed-afsk
+er-demo roundtrip --cipher rotorcrypt --transport audiolink --scenario noisy --output-dir tmp/demo-rotor-afsk
+er-demo roundtrip --cipher sealcrypt --transport morselink --key secrets/seal-key.json
 make demo-web
 ```
 
@@ -130,12 +220,53 @@ removed sample spans and actual decoder output. Failure returns nonzero.
 
 The browser at <http://127.0.0.1:8765> offers configuration, offline jobs, WAV
 upload/download/playback and live WebSocket transmission/reception. Microphone
-permission follows an explicit Receive action; capture uses the actual AudioContext
-sample rate. Stop closes the active operation. Configuration stays in memory;
-JSON imports contain data, not filesystem paths.
+permission follows an explicit **Receive microphone** or **Acoustic round trip**
+action; capture uses the actual AudioContext
+sample rate. Stop closes the active operation. Select the cipher and transport
+before preparing playback or starting reception; controls for the other method
+are not used. Rotor controls edit ordered rotors, positions, rings and plugboard;
+seal controls generate/import a separate shared key. Configuration stays in
+memory; JSON imports contain data, not filesystem paths.
+
+A seal demo without an explicit key uses a newly generated in-memory key. Generated
+keys are omitted from reports and artifacts; retain/import your own key when
+receiving another process's transmission or decoding an older WAV. Reloading the
+browser can replace its generated key. Text mode has no encryption or key use.
 
 Browser limits: 512 ASCII input bytes, 64 MiB WAV uploads, ten minutes per audio
 operation and two seconds of queued PCM. Duration is shown before playback.
 Large checked messages can exceed ten minutes because Morse framing is verbose;
-shorten the message, raise speed, use raw/text as appropriate, or use the CLI.
+shorten the message, raise Morse speed, choose `audiolink`, or use the CLI. Choose
+raw/text only when their different validation or plaintext behavior is intended.
 Live and offline results are labeled separately. Non-loopback binding is rejected.
+
+### Single-tab acoustic round trip
+
+Use **Acoustic round trip** to send a finite message through your speakers while
+the same tab listens through your microphone:
+
+1. Choose the cipher, transport, mode and text encoding, and enter a short,
+   nonempty message. Both directions share these settings and the same key.
+   Plain text must contain more than whitespace.
+2. Click **Acoustic round trip** and allow microphone access. Capture is armed
+   before playback; the prepared transmission shows its actual duration.
+3. Use speakers so the microphone can hear the sound, then click **Play**.
+   Begin at a comfortable volume and keep the microphone away from the speaker
+   if reception clips or distorts.
+4. Let playback finish. The microphone keeps listening for one second after all
+   queued sound has played, then the remaining captured audio is decoded and
+   reception finishes automatically. Inspect recovered text, the match result and
+   decoder diagnostics in the microphone result area.
+
+The result comes from microphone PCM processed by the real Python decoder.
+Speaker volume, microphone placement, room reflections and browser/device audio
+processing can affect recovery. This operation does not feed microphone audio
+back to the speakers. **Stop** cancels both directions and releases the microphone
+and audio context; it is not a successful completed transfer.
+
+Checked and raw modes compare recovered plaintext byte-for-byte with your input.
+Plain text mode bypasses encryption and reports a match after the selected
+transport's case/whitespace normalization. Offline results remain separate. The
+**Keep separate transmission open for more text** option applies to standalone
+transmission; acoustic round trip always sends the complete message present when
+it starts.

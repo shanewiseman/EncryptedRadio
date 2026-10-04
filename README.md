@@ -2,10 +2,11 @@
 
 Composable Linux-first Python applications: **rotorcrypt** preserves every ASCII
 byte through a configurable Enigma-style cipher; **sealcrypt** offers authenticated
-ChaCha20-Poly1305 encryption with the same CLI and streaming options; **morselink**
-transmits and receives their text through Morse audio. **er-demo** demonstrates the
-rotor pipeline in the terminal and a local browser. A different transport can
-replace morselink by preserving the ASCII character stream.
+ChaCha20-Poly1305 encryption with the same CLI and streaming options. **morselink**
+carries their text through Morse audio; **audiolink** uses packet AFSK
+transport with 1,200/2,200 Hz tones. **er-demo** lets you choose either cipher and
+either transport in the terminal or local browser. Transport selection does not
+change the cipher's security properties.
 
 The rotor cipher is experimental historical-style encryption, **not modern
 cryptographic security**. Its CRCs detect accidental corruption, not forgery.
@@ -31,10 +32,15 @@ make demo-web
 `tmp/demo/`. It runs faster than real time and needs no audio device or PortAudio.
 `make demo-web` serves the browser interface at <http://127.0.0.1:8765>.
 The browser uses the same Python implementation, with local WAV playback and
-optional microphone capture after an explicit action. Its cipher controls support
-`rotorcrypt`; use the [sealcrypt WAV pipeline](docs/SEALCRYPT.md) for an authenticated
-round trip. Native Linux speaker and microphone access through `morselink` also
-needs PortAudio (`sudo apt-get install libportaudio2` on Debian/Ubuntu).
+optional microphone capture after an explicit action. **Acoustic round trip**
+prepares speaker playback and microphone reception together in one tab; after
+**Play**, it reports the actual microphone result and compares the recovered
+message. See [the single-tab procedure](docs/USAGE.md#single-tab-acoustic-round-trip).
+Select `rotorcrypt` or
+`sealcrypt` independently of `morselink` or `audiolink`. The default remains the
+rotor/Morse demonstration. Native Linux speaker and microphone access through
+either transport needs PortAudio (`sudo apt-get install libportaudio2` on
+Debian/Ubuntu).
 
 Activate the environment for the remaining commands:
 
@@ -42,7 +48,8 @@ Activate the environment for the remaining commands:
 . .venv/bin/activate
 er-demo roundtrip --scenario noisy --output-dir tmp/demo-noisy
 er-demo roundtrip --scenario lost-block --output-dir tmp/demo-loss
-morselink devices
+er-demo roundtrip --cipher sealcrypt --transport audiolink --output-dir tmp/demo-sealed-afsk
+audiolink devices
 ```
 
 The loss demo removes the actual audio for one 16-byte plaintext block. It succeeds
@@ -101,22 +108,51 @@ morselink rx --profile text
 The cipher and transport commands flush available output. Stdout contains payload;
 diagnostics go to stderr. Interactive terminals normally deliver a line after Enter;
 the programs do not disable terminal line buffering. A checked block flushes at
-128 bytes, after five idle seconds, or at EOF. Morse is slow: the browser shows the
-actual transmission duration before playback.
+128 bytes, after five idle seconds, or at EOF. The browser shows the actual
+transmission duration before playback for either transport. `audiolink` sends packetized data at 1,200 bits/s before framing and
+error-correction overhead; its useful throughput is lower.
 
 Checked mode is the default for both ciphers: it buffers independent blocks,
 reports damaged or missing content, and can recover subsequent intact blocks.
 Raw mode reduces buffering: `rotorcrypt` keeps a continuous rotor state without
 integrity checks, while `sealcrypt` still authenticates every record and stops on
-detected stream errors. Match the cipher's `--mode` to morselink's `--profile` at
-both ends. See the [raw/checked comparison](docs/USAGE.md#raw-and-checked-modes)
+detected stream errors. Match the cipher's `--mode` to the chosen transport's
+`--profile` at both ends. See the [raw/checked comparison](docs/USAGE.md#raw-and-checked-modes)
 and [operation and installation guide](docs/USAGE.md).
+
+Both cipher CLIs and the demos use lossless **lowercase-first encoding by default**.
+It makes lowercase letters compact in rotorcrypt while preserving the original
+capitalization after decryption. Add `--uppercase-first` at both ends to use the
+previous encoding, or select **Uppercase-first (legacy)** in the browser's
+**Text encoding** control. Older recordings made with the previous default need
+that override when decoding. Sealcrypt uses the same settings but gains no size
+reduction. See [text encoding and compatibility](docs/USAGE.md#text-encoding).
+
+## Packet audio with audiolink
+
+Replace `morselink` with `audiolink` at both ends of any checked/raw pipeline:
+
+```sh
+sealcrypt encrypt --machine examples/machine.json --key secrets/seal-key.json \
+  --text 'Meet at 09:30!' | audiolink tx --output-wav tmp/sealed-afsk.wav
+audiolink rx --input-wav tmp/sealed-afsk.wav \
+  | sealcrypt decrypt --machine examples/machine.json --key secrets/seal-key.json
+```
+
+The two audio formats are different; match the transport at both ends. `audiolink`
+retains streaming stdin/stdout, WAV and live audio, device selection, and the
+checked/raw/text profiles. Its modem settings are distinct from Morse WPM and
+single-tone controls. See [the packet audio guide](docs/AUDIOLINK.md).
+
+The voice-band target uses a provisional 300–3,000 Hz channel model. Synthetic
+loopback tests do not establish handheld-radio or acoustic compatibility.
 
 ## Project records
 
 - [Project scope and acceptance status](docs/PROJECT.md)
 - [Architecture](docs/ARCHITECTURE.md) and [protocol/configuration](docs/PROTOCOL.md)
 - [Authenticated encryption with sealcrypt](docs/SEALCRYPT.md)
+- [Packet audio with audiolink](docs/AUDIOLINK.md)
 - [Reproducible validation and hardware checklist](docs/VALIDATION.md)
 - [AI contributor guidance](AGENTS.md) and [contributing](CONTRIBUTING.md)
 - [Architecture decisions](docs/decisions/README.md)

@@ -37,3 +37,5 @@ jobs:
         run: make check
       - name: Exercise terminal demonstration
         run: make demo
+      - name: Exercise authenticated packet audio demonstration
+        run: uv run --locked --extra audio --extra demo er-demo roundtrip --cipher sealcrypt --transport audiolink --output-dir tmp/demo/seal-audiolink

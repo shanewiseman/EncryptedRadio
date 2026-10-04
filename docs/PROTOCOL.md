@@ -16,13 +16,42 @@ The rotor alphabet has 49 positions, numbered from zero in this exact order:
 ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.,:?'/-()"=+@
 ```
 
-These are ordinary ASCII characters represented by the project's international Morse table. Prosigns, accented characters, and whitespace are not rotor symbols. The cipher preserves all 128 ASCII byte values by escaping before encryption:
+These are ordinary ASCII characters represented by the project's international Morse table. Prosigns, accented characters, and whitespace are not rotor symbols. The cipher preserves all 128 ASCII byte values by selecting a case convention and escaping before encryption:
 
-- Alphabet members other than `+` pass through unchanged.
+- Lowercase-first (the default) swaps ASCII letter case before the steps below;
+  uppercase-first (the previous behavior) leaves case unchanged.
+- After that conversion, alphabet members other than `+` pass through unchanged.
 - Every other ASCII byte, including literal `+`, becomes `+HH`, where `HH` is two uppercase hexadecimal digits.
 - Non-ASCII input is rejected. Decryption rejects incomplete escapes, lowercase/non-hexadecimal escape digits, and decoded values above 127.
 
-For example, the bytes `a`, space, `+`, and LF become `+61+20+2B+0A`. The encrypted output always consists of rotor alphabet characters. Whitespace is encoded explicitly, so a pause in transmission does not create plaintext spaces.
+For example, the bytes `a`, space, `+`, and LF become `A+20+2B+0A` by default,
+or `+61+20+2B+0A` with uppercase-first. The encrypted output always consists of
+rotor alphabet characters. Whitespace is encoded explicitly, so a pause in
+transmission does not create plaintext spaces.
+
+### Case convention and compatibility
+
+The default `lowercase-first` swaps ASCII letter case before escaping
+and reverses that swap after decoding escapes. Thus original lowercase `a` uses
+the single rotor input symbol `A`, while original uppercase `A` becomes `+61`.
+Digits, punctuation, whitespace and control bytes are unchanged by the case swap.
+All 128 ASCII bytes, including original capitalization, still round-trip exactly.
+The ciphertext alphabet and rotor stepping rules do not change.
+
+The 47-byte example `This message is encrypted using wwii technology` uses 61 raw
+ciphertext symbols with default lowercase-first encoding, compared with 139 in
+uppercase-first encoding. This favors lowercase prose, not every possible input: uppercase
+prose becomes larger. Spaces still require three symbols.
+
+Select the same encoding at both endpoints. Checked frames identify it with flag
+bit `0x02`, including end frames; receivers reject a different selected encoding.
+Older checked receivers reject this flag. Raw streams contain no encoding marker
+and cannot detect a mismatch, which can silently invert recovered capitalization.
+Use `--uppercase-first` (equivalently `--text-encoding uppercase-first`) to read
+recordings made with the previous default. `--text-encoding ascii` is retained as
+an alias for uppercase-first. The override works for encryption and decryption;
+library callers can select `text_encoding="uppercase-first"`. No encoding option
+belongs in the audio transport: both transports preserve ciphertext exactly.
 
 ## Machine and key configuration
 
@@ -97,7 +126,7 @@ Base32 encodes the following binary packet. Multi-byte integers use network byte
 | --- | --- | --- |
 | 0 | 2 | Magic bytes `ER` (`45 52` in hexadecimal). |
 | 2 | 1 | Protocol version, `1`. |
-| 3 | 1 | Flag: `0` for data, `1` for end. Other values are invalid. |
+| 3 | 1 | Flags: bit `0x01` marks end, bit `0x02` selects lowercase-first encoding. Values `0`–`3` are valid; all other bits are rejected. |
 | 4 | 8 | Session ID, generated from the operating system's random source for each encoder instance. |
 | 12 | 4 | Unsigned sequence number, starting at zero. |
 | 16 | 2 | Original plaintext byte length. |
@@ -108,6 +137,12 @@ Base32 encodes the following binary packet. Multi-byte integers use network byte
 | `32 + L` | 4 | CRC32 of the header and ciphertext, excluding this final CRC field. |
 
 CRC32 is the standard CRC-32/ISO-HDLC calculation exposed by `zlib.crc32`, serialized as an unsigned 32-bit integer. It provides accidental-error detection only.
+
+Plaintext length and CRC cover the original user bytes, before case swapping.
+The receiver restores case before checking that CRC and releasing plaintext.
+Encoding flags extend the version-1 format without changing its layout; flags
+`0`/`1` retain their original uppercase-first meanings. The current default uses
+flags `2`/`3`; selecting uppercase-first restores the original wire encoding.
 
 Data frames require a plaintext length of 1–256 and a ciphertext length between that length and three times that length. End frames require both lengths and the plaintext CRC to be zero. An end frame consumes its own sequence number. The encoder reserves sequence `0xFFFFFFFF` for an end frame: the largest permitted data sequence is `0xFFFFFFFE`. It raises an error rather than wrapping.
 
@@ -151,6 +186,16 @@ A checked decoder releases plaintext only after a closing delimiter and successf
 
 `rotorcrypt` writes payload only to stdout and diagnostics to stderr. Exit status is `0` on success, `1` for checked reception damage/loss, `2` for configuration/input failures, `130` on interruption, and `141` on a broken output pipe. Previously verified plaintext may already have been emitted before a later error. Use shell `set -o pipefail` to preserve pipeline failures.
 
-A replacement transport accepts and emits the same ASCII symbols without knowing any rotor settings. It must preserve ordering and symbols, flush decoded output, and communicate detected uncertainty rather than silently dropping data. The Morse adapter's checked profile emits `?` on a decoding discontinuity; its raw profile stops because alignment cannot safely recover. Character/word timing is a transport concern: raw and checked modes do not turn long audio gaps into plaintext whitespace. Ordinary text-mode Morse is a separate unencrypted profile.
+A replacement transport accepts and emits the same ASCII symbols without knowing
+any rotor settings. It must preserve ordering and symbols, flush decoded output,
+and communicate detected uncertainty rather than silently dropping data. Both
+`morselink` and `audiolink` provide checked profiles that emit `?` on a detected
+discontinuity, and raw profiles that stop because alignment cannot safely recover.
+Their waveforms differ; select the same transport at both endpoints. The packet
+modem's separate framing and error correction are documented in
+[AUDIOLINK.md](AUDIOLINK.md) and do not change this cipher protocol.
+Character/word timing is a transport concern: raw and checked modes do not turn
+long audio gaps into plaintext whitespace. Ordinary text mode is a separate
+unencrypted profile.
 
 The [usage guide](USAGE.md) describes commands; the [architecture](ARCHITECTURE.md) describes component boundaries; the [validation record](VALIDATION.md) distinguishes automated tests from physical audio evidence.

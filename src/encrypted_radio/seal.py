@@ -21,6 +21,7 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.ciphers.aead import ChaCha20Poly1305
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 
+from .codec import DEFAULT_TEXT_ENCODING, normalize_text_encoding
 from .config import Machine
 
 HEADER = struct.Struct("!2sBB32sIH8s")
@@ -111,8 +112,10 @@ class SealStreamError(ValueError):
 
 
 class SealEncoder:
-    def __init__(self, machine: Machine, key: SealKey, mode: str = "checked", block_size: int = 128):
+    def __init__(self, machine: Machine, key: SealKey, mode: str = "checked", block_size: int = 128,
+                 *, text_encoding: str = DEFAULT_TEXT_ENCODING):
         self._mode = _mode_byte(mode)
+        self.text_encoding = normalize_text_encoding(text_encoding)
         if type(block_size) is not int or not 1 <= block_size <= MAX_PLAINTEXT:
             raise ValueError("block size must be an integer from 1 to 256")
         self.machine, self.key, self.mode, self.block_size = machine, key, mode, block_size
@@ -128,9 +131,11 @@ class SealEncoder:
     def _frame(self, data: bytes, end: bool = False) -> str:
         if self.sequence > MAX_SEQUENCE or (not end and self.sequence == MAX_SEQUENCE):
             raise ValueError("seal session sequence exhausted")
-        flag = self._mode * 2 + int(end)
+        flag = self._mode * 2 + int(end) + 4 * (self.text_encoding == "lowercase-first")
         header = HEADER.pack(b"SC", 1, flag, self.session_id, self.sequence, len(data), self.machine_hash[:8])
         nonce = b"\0" * 8 + struct.pack("!I", self.sequence)
+        if self.text_encoding == "lowercase-first":
+            data = data.swapcase()
         packet = header + self._aead.encrypt(nonce, data, header + self.machine_hash)
         body = base64.b32encode(packet).decode("ascii").rstrip("=")
         self.sequence += 1
@@ -171,8 +176,10 @@ class SealEncoder:
 
 
 class SealDecoder:
-    def __init__(self, machine: Machine, key: SealKey, mode: str = "checked"):
+    def __init__(self, machine: Machine, key: SealKey, mode: str = "checked",
+                 *, text_encoding: str = DEFAULT_TEXT_ENCODING):
         self._mode = _mode_byte(mode)
+        self.text_encoding = normalize_text_encoding(text_encoding)
         self.machine, self.key, self.mode = machine, key, mode
         self.machine_hash = machine_digest(machine)
         self.errors: list[str] = []
@@ -215,10 +222,12 @@ class SealDecoder:
         if base64.b32encode(packet).decode("ascii").rstrip("=") != body:
             raise ValueError("noncanonical Base32 seal frame")
         magic, version, flag, session, sequence, plainlen, fingerprint = HEADER.unpack_from(packet)
-        if magic != b"SC" or version != 1 or flag not in (0, 1, 2, 3):
+        if magic != b"SC" or version != 1 or flag not in range(8):
             raise ValueError("unsupported seal frame header")
-        if flag // 2 != self._mode:
+        if (flag & 2) // 2 != self._mode:
             raise ValueError("seal frame mode does not match the receiver")
+        if bool(flag & 4) != (self.text_encoding == "lowercase-first"):
+            raise ValueError("seal frame text encoding does not match the receiver")
         end = bool(flag & 1)
         if (end and plainlen != 0) or (not end and not 1 <= plainlen <= MAX_PLAINTEXT):
             raise ValueError("invalid seal plaintext length")
@@ -238,6 +247,8 @@ class SealDecoder:
             raise ValueError("seal authentication failed (damaged data, incorrect key, or context)") from None
         if any(byte > 127 for byte in plaintext):
             raise ValueError("authenticated seal plaintext is not ASCII")
+        if self.text_encoding == "lowercase-first":
+            plaintext = plaintext.swapcase()
         # Unauthenticated packets never change session or sequence state.
         if session != self.session_id:
             if session in self._past_sessions:

@@ -30,4 +30,4 @@ body:
     id: risks
     attributes:
       label: Risks and validation
-      description: Include make check and relevant pipeline checks. make demo covers the rotor pipeline; sealcrypt needs its own round trips. Note security constraints, Node.js/browser or audio prerequisites, and whether evidence is synthetic or physical.
+      description: Include make check and relevant pipeline checks. make demo covers the default rotor/Morse pipeline; verify all affected cipher/transport combinations. Note security constraints, Node.js/browser or audio prerequisites, and whether evidence is synthetic or physical.

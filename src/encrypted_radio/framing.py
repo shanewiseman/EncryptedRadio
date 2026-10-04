@@ -12,7 +12,7 @@ import secrets
 import struct
 import zlib
 
-from .codec import decode_ascii, encode_ascii
+from .codec import DEFAULT_TEXT_ENCODING, decode_ascii, encode_ascii, normalize_text_encoding
 from .config import Key, Machine
 from .rotor import RotorMachine
 
@@ -36,7 +36,8 @@ def block_positions(key: Key, session: bytes, sequence: int) -> tuple[int, ...]:
 
 
 class CheckedEncoder:
-    def __init__(self, machine: Machine, key: Key, block_size: int = 128, session_id: bytes | None = None):
+    def __init__(self, machine: Machine, key: Key, block_size: int = 128, session_id: bytes | None = None, *, text_encoding: str = DEFAULT_TEXT_ENCODING):
+        self.text_encoding = normalize_text_encoding(text_encoding)
         if type(block_size) is not int or not 1 <= block_size <= 256:
             raise ValueError("block size must be an integer from 1 to 256")
         self.machine, self.key, self.block_size = machine, key, block_size
@@ -51,8 +52,10 @@ class CheckedEncoder:
         # Reserve the final sequence for the end marker rather than wrapping.
         if self.sequence > MAX_SEQUENCE or (not end and self.sequence == MAX_SEQUENCE):
             raise ValueError("checked session sequence exhausted")
-        encrypted = RotorMachine(self.machine, self.key, block_positions(self.key, self.session_id, self.sequence)).transform(encode_ascii(data)).encode("ascii")
-        header = HEADER.pack(b"ER", 1, int(end), self.session_id, self.sequence,
+        symbols = encode_ascii(data, text_encoding=self.text_encoding)
+        encrypted = RotorMachine(self.machine, self.key, block_positions(self.key, self.session_id, self.sequence)).transform(symbols).encode("ascii")
+        flag = int(end) | (2 if self.text_encoding == "lowercase-first" else 0)
+        header = HEADER.pack(b"ER", 1, flag, self.session_id, self.sequence,
                              len(data), len(encrypted), self.machine.fingerprint, zlib.crc32(data))
         packet = header + encrypted
         body = base64.b32encode(packet + CRC.pack(zlib.crc32(packet))).decode("ascii").rstrip("=")
@@ -93,7 +96,8 @@ class CheckedEncoder:
 
 
 class CheckedDecoder:
-    def __init__(self, machine: Machine, key: Key):
+    def __init__(self, machine: Machine, key: Key, *, text_encoding: str = DEFAULT_TEXT_ENCODING):
+        self.text_encoding = normalize_text_encoding(text_encoding)
         self.machine, self.key = machine, key
         self.errors: list[str] = []
         self.error_count = 0
@@ -127,11 +131,14 @@ class CheckedDecoder:
         if zlib.crc32(packet[:-4]) != CRC.unpack(packet[-4:])[0]:
             raise ValueError("frame envelope checksum mismatch")
         magic, version, flag, session, sequence, plainlen, cipherlen, fingerprint, plaincrc = HEADER.unpack_from(packet)
-        if magic != b"ER" or version != 1 or flag not in (0, 1):
+        if magic != b"ER" or version != 1 or flag not in (0, 1, 2, 3):
             raise ValueError("unsupported checked frame header")
+        if bool(flag & 2) != (self.text_encoding == "lowercase-first"):
+            raise ValueError("frame text encoding does not match the receiver")
+        end = bool(flag & 1)
         if cipherlen > MAX_CIPHERTEXT or len(packet) != HEADER.size + cipherlen + CRC.size:
             raise ValueError("invalid ciphertext length")
-        if flag == 1:
+        if end:
             if plainlen or cipherlen or plaincrc:
                 raise ValueError("end frame must have an empty payload")
         elif not 1 <= plainlen <= 256 or not plainlen <= cipherlen <= 3 * plainlen:
@@ -143,7 +150,7 @@ class CheckedDecoder:
         except UnicodeError:
             raise ValueError("ciphertext is not ASCII") from None
         rotor = RotorMachine(self.machine, self.key, block_positions(self.key, session, sequence))
-        plaintext = decode_ascii(rotor.transform(ciphertext))
+        plaintext = decode_ascii(rotor.transform(ciphertext), text_encoding=self.text_encoding)
         if len(plaintext) != plainlen or zlib.crc32(plaintext) != plaincrc:
             raise ValueError("plaintext checksum mismatch (damaged data or incorrect key)")
         # Only verified frames affect sequencing or release plaintext.
@@ -166,7 +173,7 @@ class CheckedDecoder:
         if sequence > self.expected_sequence:
             self._error(f"missing frames {self.expected_sequence} through {sequence - 1}")
         self.expected_sequence = sequence + 1
-        self.complete = flag == 1
+        self.complete = end
         return plaintext
 
     def feed(self, symbols: str) -> bytes:

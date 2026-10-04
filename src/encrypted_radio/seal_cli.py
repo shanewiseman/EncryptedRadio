@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 import sys
 
+from .codec import DEFAULT_TEXT_ENCODING, TEXT_ENCODINGS
 from .config import load_machine
 from .seal import SealDecoder, SealEncoder, SealStreamError, generate_key, load_key
 from .streams import iter_chunks
@@ -25,6 +26,12 @@ def _parser():
     parser.add_argument("--machine", help="required for encrypt/decrypt: public machine JSON authenticated as context")
     parser.add_argument("--key", required=True, type=Path, help="private sealcrypt key JSON; keygen creates this path")
     parser.add_argument("--mode", choices=("checked", "raw"), default="checked")
+    encoding = parser.add_mutually_exclusive_group()
+    encoding.add_argument("--text-encoding", choices=TEXT_ENCODINGS,
+                          help="reversible case convention; match both ends (default: lowercase-first); "
+                               "ascii is an alias for uppercase-first; neither provides a size benefit for sealcrypt")
+    encoding.add_argument("--uppercase-first", dest="text_encoding", action="store_const", const="uppercase-first",
+                          help="use legacy uppercase-first encoding at both ends")
     parser.add_argument("--block-size", type=int, default=128, help="plaintext bytes per record, 1–256 (default: 128)")
     parser.add_argument("--idle-seconds", type=float, default=5.0, help="checked encryption idle flush interval (default: 5)")
     source = parser.add_mutually_exclusive_group()
@@ -67,21 +74,24 @@ def main(argv=None):
     if args.operation != "keygen" and not args.machine:
         parser.error("--machine is required for encrypt and decrypt")
     if args.operation == "keygen" and (args.machine is not None or args.text is not None or args.input is not None
-                                       or args.mode != "checked" or args.block_size != 128 or args.idle_seconds != 5):
+                                       or args.mode != "checked" or args.text_encoding is not None
+                                       or args.block_size != 128 or args.idle_seconds != 5):
         parser.error("keygen accepts --key only")
     try:
         if args.operation == "keygen":
             _write_key(args.key)
             print(f"sealcrypt: created private key at {args.key}", file=sys.stderr)
             return 0
+        args.text_encoding = args.text_encoding or DEFAULT_TEXT_ENCODING
         if not 0 < args.idle_seconds <= 3600:
             raise ValueError("idle seconds must be greater than zero and at most 3600")
         if not 1 <= args.block_size <= 256:
             raise ValueError("block size must be between 1 and 256")
         machine, key = load_machine(args.machine), load_key(args.key)
         encrypt = args.operation == "encrypt"
-        operation = (SealEncoder(machine, key, mode=args.mode, block_size=args.block_size)
-                     if encrypt else SealDecoder(machine, key, mode=args.mode))
+        operation = (SealEncoder(machine, key, mode=args.mode, block_size=args.block_size,
+                                 text_encoding=args.text_encoding)
+                     if encrypt else SealDecoder(machine, key, mode=args.mode, text_encoding=args.text_encoding))
         reported = 0
 
         def emit(value):

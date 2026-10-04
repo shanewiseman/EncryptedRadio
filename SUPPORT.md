@@ -1,8 +1,8 @@
 # Support
 
 EncryptedRadio provides the `rotorcrypt` and `sealcrypt` cipher commands, the
-`morselink` Morse transport, and terminal/browser rotor demonstrations through
-`er-demo`. Installation and command examples are in [README.md](README.md) and
+`morselink` Morse and `audiolink` packet audio transports, and terminal/browser
+demonstrations of all four combinations through `er-demo`. Installation and command examples are in [README.md](README.md) and
 [the usage guide](docs/USAGE.md). The project has no service commitments, and
 licensing remains undecided.
 
@@ -11,8 +11,8 @@ and then open an issue if needed. A useful reproduction includes:
 
 - The affected command or browser operation, repository revision, and exact command
   line with private paths and values removed.
-- Cipher mode (`checked` or `raw`), Morse profile (`checked`, `raw`, or `text`), and
-  input source: `--text`, file, stdin, WAV, microphone, or browser streaming.
+- Cipher and transport names, cipher mode (`checked` or `raw`), transport profile
+  (`checked`, `raw`, or `text`), and input source: `--text`, file, stdin, WAV, microphone, or browser streaming.
 - Expected and actual output, exit status, and sanitized stderr. Use synthetic
   plaintext and public demonstration settings; never attach a private key file.
 - OS and Python version; browser/Node.js versions for browser failures; audio
@@ -21,8 +21,8 @@ and then open an issue if needed. A useful reproduction includes:
 
 Use [sealcrypt documentation](docs/SEALCRYPT.md) for authenticated encryption and
 key handling. Raw/checked behavior differs between the two ciphers; identify which
-one is involved. `er-demo` and the browser currently demonstrate the rotor cipher,
-not sealcrypt. Check [validation evidence and remaining hardware acceptance](docs/VALIDATION.md)
+one is involved. Use the [audiolink guide](docs/AUDIOLINK.md) for packet audio
+settings and the provisional voice-band channel target. Check [validation evidence and remaining hardware acceptance](docs/VALIDATION.md)
 before treating a synthetic test result as a hardware guarantee.
 
 Use the [task template](docs/TASK_TEMPLATE.md) for implementation requests. Remove

@@ -35,9 +35,10 @@ workflow change is trustworthy.
 
 The [CI workflow](../.github/workflows/ci.yml) installs uv, the locked Python audio
 and demo extras, and the PortAudio runtime on Ubuntu. It runs `make check`
-(repository hygiene and application tests) followed by `make demo` (the actual
-rotor cipher/WAV round trip). Tests include sealcrypt's authenticated protocol;
-`make demo` remains a rotor demonstration. Browser lifecycle tests need Node.js
+(repository hygiene and application tests), `make demo` (the actual default
+rotor/Morse WAV round trip), and an explicit sealcrypt/audiolink demonstration.
+Tests cover both ciphers and transports and shared browser integration. The default demonstration is preserved; `er-demo`
+also accepts explicit cipher/transport selections. Browser lifecycle tests need Node.js
 and report a skip if it is unavailable. See [validation](VALIDATION.md) for the
 full reproduction commands and the distinction between synthetic and hardware
 evidence. These jobs do not validate physical speaker/microphone reception or a

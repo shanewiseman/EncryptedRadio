@@ -7,6 +7,7 @@ import os
 import sys
 
 from .cipher import RawDecoder, RawEncoder
+from .codec import DEFAULT_TEXT_ENCODING, TEXT_ENCODINGS
 from .config import load_key, load_machine
 from .framing import CheckedDecoder, CheckedEncoder
 from .streams import iter_chunks as _chunks
@@ -18,6 +19,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--machine", required=True, help="public machine JSON file")
     parser.add_argument("--key", required=True, help="private key JSON file; bundled examples are public")
     parser.add_argument("--mode", choices=("checked", "raw"), default="checked")
+    encoding = parser.add_mutually_exclusive_group()
+    encoding.add_argument("--text-encoding", choices=TEXT_ENCODINGS, default=DEFAULT_TEXT_ENCODING,
+                          help="reversible exact-case encoding (default: lowercase-first); ascii is the legacy uppercase-first alias; match both ends")
+    encoding.add_argument("--uppercase-first", dest="text_encoding", action="store_const", const="uppercase-first",
+                          help="use the original uppercase-first encoding, including for legacy ciphertext")
     parser.add_argument("--block-size", type=int, default=128)
     parser.add_argument("--idle-seconds", type=float, default=5.0, help="checked encryption idle flush interval (default: 5)")
     source = parser.add_mutually_exclusive_group()
@@ -31,9 +37,11 @@ def main(argv: list[str] | None = None) -> int:
         key = load_key(args.key, machine)
         encrypt = args.operation == "encrypt"
         if encrypt:
-            operation = CheckedEncoder(machine, key, args.block_size) if args.mode == "checked" else RawEncoder(machine, key)
+            operation = (CheckedEncoder(machine, key, args.block_size, text_encoding=args.text_encoding) if args.mode == "checked" else
+                         RawEncoder(machine, key, text_encoding=args.text_encoding))
         else:
-            operation = CheckedDecoder(machine, key) if args.mode == "checked" else RawDecoder(machine, key)
+            operation = (CheckedDecoder(machine, key, text_encoding=args.text_encoding) if args.mode == "checked" else
+                         RawDecoder(machine, key, text_encoding=args.text_encoding))
         diagnostics = 0
 
         def emit(value: str | bytes) -> None:

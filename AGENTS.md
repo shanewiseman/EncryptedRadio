@@ -7,7 +7,7 @@ Keep provider-specific instruction files as small adapters to this file.
 
 - Development is led through human prompts and implemented with AI assistance.
   The human request defines the outcome; contributors remain responsible for the result.
-- The repository implements Python 3.12+ `rotorcrypt`, `sealcrypt`, `morselink`, and `er-demo`
+- The repository implements Python 3.12+ `rotorcrypt`, `sealcrypt`, `morselink`, `audiolink`, and `er-demo`
   under `src/encrypted_radio`. Read `docs/PROTOCOL.md` before changing the codec,
   rotor stepping or checked wire format. Enigma-style encryption is experimental;
   never claim modern cryptographic security or authentication for rotorcrypt.
@@ -49,8 +49,10 @@ Keep provider-specific instruction files as small adapters to this file.
 - Run `make sync` to install locked audio/demo dependencies, then `make check`
   for repository hygiene and application tests. Run `make demo` after data-path
   changes. Node.js 18+ supplies browser lifecycle test coverage; PortAudio is needed
-  only for native live devices. `er-demo` exercises rotorcrypt; validate sealcrypt
-  changes with its tests and the WAV pipeline in `docs/SEALCRYPT.md` as appropriate.
+  only for native live devices. `er-demo` defaults to rotorcrypt/Morse and supports
+  both ciphers and transports; verify each affected combination. Read
+  `docs/AUDIOLINK.md` before changing packet framing, modem timing or its channel
+  model, and `docs/SEALCRYPT.md` for authenticated-cipher checks.
 - Keep the shared Python cipher/DSP authoritative: browser UI and demonstrations
   must not fake decoded results or reimplement the algorithms in JavaScript.
 - Preserve stdout as payload-only, incremental state across chunks, finite-input
