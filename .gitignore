@@ -24,7 +24,7 @@ CLAUDE.local.md
 .DS_Store
 Thumbs.db
 
-# Bootstrap tooling caches and generated output
+# Tooling caches, build artifacts, and demonstration output
 __pycache__/
 *.py[cod]
 .venv/

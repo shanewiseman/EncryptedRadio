@@ -7,6 +7,10 @@ receive ASCII symbols. It is a separate, versioned protocol: both ends must use
 `sealcrypt` and a new 256-bit key. Existing rotor ciphertext and rotor keys are not
 compatible.
 
+Checked mode is the default. See the shared
+[raw and checked mode comparison](USAGE.md#raw-and-checked-modes)
+for the differences in buffering, recovery and receive latency across both ciphers.
+
 ## Threat model
 
 The new command protects plaintext confidentiality and authenticates each record
@@ -38,17 +42,23 @@ interrupts have controlled exits. Terminal line buffering still applies.
 
 `--machine` accepts the same public machine JSON, validates it, and binds its
 canonical full SHA-256 digest into key derivation and authentication. Rotor wiring
-is not used as an encryption primitive. Both ends must supply the same machine.
+is not used as an encryption primitive. Both ends must supply the same machine,
+shared key and mode. Public machine data supplies context, not a secret; the
+random key supplies the secret.
 `--key` uses the new key format below; rotor settings are deliberately rejected.
 
-Checked mode buffers 128 plaintext bytes by default, flushes after five idle
-seconds, and supports block sizes 1–256. It reports damaged/missing/repeated records
+Checked mode buffers 128 plaintext bytes by default, emits a full block immediately,
+flushes a partial block after five idle seconds or at EOF, and supports block sizes
+1–256. `--idle-seconds` changes the checked encryption idle interval; it does not
+time out decryption. It reports damaged/missing/repeated records
 and can recover subsequent authenticated records. Silence never expires a partial
 record. EOF emits a mandatory authenticated end record.
 
 Raw mode flushes each available input chunk immediately, splitting it at the block
-size, and fails on the first detected stream error. It still uses authenticated
-records and an end marker. It cannot provide the rotor cipher's character-by-character
+size. Input chunk boundaries depend on the pipe or file reads; a chunk is not
+necessarily one typed character or one line. The raw receiver fails on the first
+detected stream error. It still uses authenticated records and an end marker.
+It cannot provide the rotor cipher's character-by-character
 decryption latency: each record must arrive in full before any of its plaintext is
 released. Small raw chunks also have greater Morse overhead. Neither mode emits
 unauthenticated plaintext or falls back to rotor decryption.
@@ -70,6 +80,8 @@ morselink rx \
 # Raw streaming: pair the raw cipher and transport profiles.
 sealcrypt encrypt --mode raw --machine examples/machine.json --key secrets/seal-key.json \
   | morselink tx --profile raw
+morselink rx --profile raw \
+  | sealcrypt decrypt --mode raw --machine examples/machine.json --key secrets/seal-key.json
 
 # Offline files and WAV: no sound device required.
 mkdir -p tmp
@@ -85,6 +97,9 @@ operating system's random source, creates missing parent directories with mode
 It never prints key material to stdout or stderr. The file contains exactly
 `version: 1`, `algorithm: "chacha20-poly1305"`, and `key_hex`: 64 hexadecimal digits
 representing 32 random bytes. Passwords and rotor configurations are not keys.
+Key files are UTF-8 JSON, bounded to 4,096 bytes; duplicate or unknown fields and
+unsupported versions or algorithms are rejected. Key generation changes only
+newly created directories and files, not permissions on existing parent directories.
 Keep keys under ignored `secrets/`; copying a key file does not encrypt it at rest.
 
 The existing browser and `er-demo` rotor controls continue to demonstrate the rotor
@@ -108,8 +123,9 @@ checked reception to resynchronize. The binary header uses network byte order:
 | 50 | variable | Ciphertext with a full 16-byte authentication tag |
 
 The header is `struct.Struct("!2sBB32sIH8s")`. The complete packet is at most
-322 bytes, or 516 Base32 characters. Plaintext ASCII bytes are encrypted directly;
-there is no escape encoding, plaintext CRC, or secret-derived public fingerprint.
+322 bytes, or 516 Base32 characters (521 symbols with the preamble and delimiters).
+Plaintext ASCII bytes are encrypted directly; there is no escape encoding,
+plaintext CRC, or secret-derived public fingerprint.
 
 Canonical machine JSON uses the validated version-1 fields, sorted keys, compact
 separators and ASCII escaping, as in the [rotor protocol](PROTOCOL.md). Its full
@@ -132,8 +148,18 @@ on avoiding session-salt repetition under the same master key and context.
 
 Only authenticated records can change receiver session/sequence state. Bounds,
 header fields, canonical Base32, tag and plaintext ASCII are validated before
-release. Checked errors are bounded to 128 diagnostics plus an omission notice.
-An error remains reflected in the exit status even after later recovery.
+release. Checked reception suppresses duplicate/old records, reports sequence gaps,
+and resumes with later intact records. A new session before the previous end
+record reports an incomplete previous session; the latest 64 superseded session
+IDs are retained to suppress delayed records. Silence preserves partial records.
+Invalid symbols, oversized bodies, replaced partial frames, trailing truncation
+and missing end records produce errors. Raw reception terminates at the first
+such error instead of attempting recovery.
+
+Checked errors are bounded to 128 diagnostics plus an omission notice. An error
+remains reflected in the exit status even after later recovery. The library's
+`complete` attribute records receipt of an end marker without trailing truncation;
+it does not clear prior `errors`, which callers must inspect as well.
 
 Exit codes match the existing command: 0 success, 1 stream integrity failure,
 2 configuration/input failure, 130 interruption, 141 broken output pipe.

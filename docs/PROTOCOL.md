@@ -1,6 +1,12 @@
-# Cipher and transport protocol, version 1
+# rotorcrypt cipher and transport protocol, version 1
 
 This document specifies the implemented experimental rotor transform and checked symbol stream. It is an interoperability description, not a modern cryptographic security claim. Read the [security policy](../SECURITY.md) before using private data.
+
+This specification applies to `rotorcrypt`. The authenticated replacement has its
+own [sealcrypt protocol](SEALCRYPT.md), with different keys and packets even though
+both commands share CLI options and Morse-compatible framing. Its raw mode also
+uses authenticated records; the continuous rotor transform described here does
+not apply to it. See the [mode comparison](USAGE.md#raw-and-checked-modes).
 
 ## ASCII and symbol alphabet
 
@@ -35,7 +41,10 @@ The [public machine example](../examples/machine.json) is also bundled as a pack
 
 A reciprocal reflector maps each paired character back to its partner. Because the alphabet has odd size, one character must map to itself; this implementation requires exactly one such character.
 
-The [public example key](../examples/example-key.json) selects three rotors and twelve plugboard cables. Its fields are:
+`sealcrypt` accepts this same public machine schema to bind an authenticated
+configuration context. It does not use these rotors or reflector to encrypt.
+
+The [public example rotor key](../examples/example-key.json) selects three rotors and twelve plugboard cables. Its fields are:
 
 | Field | Meaning and validation |
 | --- | --- |
@@ -46,6 +55,9 @@ The [public example key](../examples/example-key.json) selects three rotors and 
 | `plugboard` | 10–16 two-character strings, with both characters in the alphabet. Characters must be distinct across the entire list, so self-pairs and shared sockets are invalid. |
 
 One plugboard entry is one cable connecting two characters. Unconnected characters map to themselves. These public examples are demonstration data, not private keys. Put private configurations under the ignored `secrets/` directory and protect them with appropriate filesystem permissions. Ignoring a path does not encrypt its contents.
+
+This private rotor configuration cannot be used as a `sealcrypt` key. Generate that
+command's random shared key using the [sealcrypt key procedure](SEALCRYPT.md#key-generation-and-commands).
 
 ## Rotor transform and raw mode
 

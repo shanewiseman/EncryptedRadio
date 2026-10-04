@@ -2,7 +2,7 @@
 
 EncryptedRadio is developed exclusively through LLM/AI prompts. Use prompts to direct implementation and maintenance, and keep maintainers responsible for scope, review, and acceptance. Do not treat generated code or a model's confidence as evidence of correctness.
 
-## Before implementation
+## Before making changes
 
 Read [AGENTS.md](AGENTS.md), the [project brief](docs/PROJECT.md), and any instructions in the directories you will change. Start with an issue or task description based on the [task template](docs/TASK_TEMPLATE.md). Small corrections can use the pull request description directly.
 
@@ -10,10 +10,10 @@ Specify the desired behavior, constraints, acceptance criteria, and verification
 
 ## Change workflow
 
-1. Start a focused branch from the current `master`, using a descriptive name such as `codex/define-project-requirements`.
+1. Start a focused branch from the current `master`, using a descriptive name such as `codex/improve-receiver-diagnostics`.
 2. Direct the agent to inspect existing files and relevant instructions before editing.
 3. Keep changes limited to the task. Update documentation and add an [architecture decision record](docs/decisions/README.md) when a consequential decision is made.
-4. Run `make sync` and `make check` with Python 3.12+, uv and Make, plus `make demo` for data-path changes. Locked extras supply the test dependencies; offline tests do not need PortAudio or a microphone. Add meaningful failure cases and distinguish synthetic evidence from physical hardware validation.
+4. Run `make sync` and `make check` with Python 3.12+, uv, Make and Node.js 18+, plus `make demo` for data-path changes. Locked extras supply the Python test dependencies; offline tests do not need PortAudio or a microphone. The terminal/browser demos exercise rotorcrypt; use the [sealcrypt WAV pipeline](docs/SEALCRYPT.md) for its transport validation when relevant. Add meaningful failure cases and distinguish synthetic evidence from physical hardware validation.
 5. Review the diff for correctness, secrets, unrelated changes, and unsupported claims.
 6. Open a pull request that states the problem, resulting behavior, acceptance criteria, test evidence, and any unresolved limitations.
 7. Address review feedback and rebase onto the current `master` as needed. Integrate using GitHub's **Rebase and merge** action.

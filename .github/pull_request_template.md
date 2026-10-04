@@ -6,6 +6,9 @@ Remove secrets and private context from prompt summaries.
 ## Changes
 
 Describe the resulting behavior and any material design decisions.
+Identify affected commands (`rotorcrypt`, `sealcrypt`, `morselink`, `er-demo`), browser
+operations, or repository tooling. For data-path changes, state modes/profiles,
+input sources, and any CLI, configuration, or wire compatibility impact.
 
 ## Acceptance and validation
 
@@ -17,6 +20,12 @@ Describe the resulting behavior and any material design decisions.
 
 Record actual results, limitations, and anything not tested. An AI assertion is
 not test evidence.
+
+Run `make demo` for data-path changes; it exercises the rotor pipeline. Record
+separate checked/raw verification for sealcrypt changes. Note skipped checks
+(including browser lifecycle checks without Node.js) and distinguish WAV/mocked
+audio evidence from physical microphone or human-keying acceptance. Use synthetic
+input and public demo settings; never include private keys or captured private traffic.
 
 ## Risks and follow-up
 

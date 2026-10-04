@@ -18,8 +18,8 @@ flowchart LR
     D --> R[ASCII symbols]
     R --> F[Frame validation + rotor cipher + codec]
     R --> V[sealcrypt authentication + record validation]
-    F --> O[Verified plaintext blocks]
-    V --> O
+    F --> O[CRC-checked rotor plaintext]
+    V --> Q[Authenticated sealcrypt plaintext]
 ```
 
 ## Modules and ownership
@@ -42,20 +42,24 @@ flowchart LR
 
 Each cipher owns its framing and recovery. `sealcrypt` accepts the same public
 machine JSON as authenticated context, with a distinct shared-key format; it does
-not use rotor wiring to encrypt. Its records use Morse-compatible Base32 and the
+not use rotor wiring to encrypt. It encrypts all 128 ASCII byte values directly,
+without the rotor codec's escaping. Its records use Morse-compatible Base32 and the
 same acquisition prefix and delimiters, so `morselink` needs no changes. Both ends
-of a transfer must use the same cipher. A replacement transport carries ordered
+of a transfer must use the same cipher and mode; the distinct versioned packets and
+private key formats are not interchangeable. A replacement transport carries ordered
 ASCII symbols, signals failure and preserves streaming operation. It does not need
 access to the key or cipher state. CLI stdout is payload-only.
 
 ## State and recovery
 
 `rotorcrypt` raw mode uses one rotor stack and escape decoder until exit. Its
-checked mode buffers up to 256 plaintext bytes; each frame starts from independently
-derived positions.
+checked mode buffers 128 plaintext bytes by default (configurable from 1 to 256)
+and flushes at the block limit, after five idle seconds by default, or at EOF.
+Each frame starts from independently derived positions.
 A parser holds at most 1,287 Base32 symbols and validates each block before releasing
-plaintext. Gaps and duplicate/old blocks are tracked; silence has no framing
-significance. EOF requires an end frame. See [PROTOCOL.md](PROTOCOL.md).
+plaintext using CRC checks, which provide no authentication. Gaps and duplicate/old
+blocks are tracked; silence has no framing significance. Checked EOF requires an
+end frame; raw rotor output has none. See [PROTOCOL.md](PROTOCOL.md).
 
 `sealcrypt` encrypts up to 256 plaintext bytes per authenticated record and holds at
 most 516 Base32 symbols while parsing. A random 32-byte session salt, mode, and full
@@ -67,6 +71,13 @@ immediately as bounded records and stops on any detected integrity or ordering
 error. Both modes require an authenticated end record and wait for a full record
 before releasing plaintext. Recent-session caches are bounded; replay across
 receiver restarts remains possible. See [SEALCRYPT.md](SEALCRYPT.md).
+
+The shared pipe reader yields currently available bytes without waiting to fill
+its buffer. Raw `sealcrypt` encrypts those bytes immediately, split at the chosen
+block size; its receiver still needs the complete record and tag. Idle flushing
+affects checked encryption only and never imposes a timeout on a partial received
+frame. The [mode comparison](USAGE.md#raw-and-checked-modes) summarizes these
+user-visible tradeoffs.
 
 Morse synthesis yields at most 20 ms of mono float32 PCM per chunk. WAV reads and
 writes are incremental. Reception finds a concentrated foreground spectral peak,
@@ -105,4 +116,5 @@ against malicious software on the same computer.
 The lockfile fixes dependency versions. `make check` runs hygiene and application
 tests; `make demo` exercises the data path. GitHub retains the required job name and
 branch policy. See [VALIDATION.md](VALIDATION.md), [SECURITY.md](../SECURITY.md), and
-[ADR 0002](decisions/0002-rotor-morse-suite.md).
+the complementary decisions [ADR 0002](decisions/0002-rotor-morse-suite.md) and
+[ADR 0003](decisions/0003-authenticated-sealcrypt.md).

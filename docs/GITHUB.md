@@ -33,6 +33,16 @@ GitHub Actions app (integration ID `15368`), and the branch must be current with
 Human owner review remains necessary: the job alone does not prove that a proposed
 workflow change is trustworthy.
 
+The [CI workflow](../.github/workflows/ci.yml) installs uv, the locked Python audio
+and demo extras, and the PortAudio runtime on Ubuntu. It runs `make check`
+(repository hygiene and application tests) followed by `make demo` (the actual
+rotor cipher/WAV round trip). Tests include sealcrypt's authenticated protocol;
+`make demo` remains a rotor demonstration. Browser lifecycle tests need Node.js
+and report a skip if it is unavailable. See [validation](VALIDATION.md) for the
+full reproduction commands and the distinction between synthetic and hardware
+evidence. These jobs do not validate physical speaker/microphone reception or a
+human operator.
+
 ## Repository defaults
 
 - Delete feature branches after PR integration; disable automatic merging.
@@ -48,9 +58,12 @@ unrelated existing rulesets are not managed by the script.
 
 ## Apply and verify
 
-Run the offline repository checks first:
+Install the locked environment, then run the offline repository and application
+checks first. Use the [installation prerequisites](../README.md#install-and-run),
+including Node.js 18+ for full browser lifecycle coverage:
 
 ```sh
+make sync
 make check
 ```
 
@@ -90,9 +103,10 @@ changes may already have applied. Fix the cause and rerun `--check`, then
 `--apply`; the process is idempotent. The script never silently replaces the
 owner-specific bypass with a role-wide administrator bypass.
 
-Normal CI runs offline checks only. It has no administrative token and never
-applies policy files from a PR. To inspect or apply remote settings, run the script
-locally from a trusted checkout.
+CI downloads dependencies during setup, then runs checks and a WAV demonstration
+without audio hardware or remote application services. It has no administrative
+token and never applies policy files from a PR. To inspect or apply remote
+settings, run the script locally from a trusted checkout.
 
 ## References
 

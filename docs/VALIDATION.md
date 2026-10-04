@@ -11,17 +11,27 @@ uv run --locked --extra audio --extra demo er-demo roundtrip --scenario lost-blo
 uv run --locked --extra audio python scripts/benchmark_dsp.py --output tmp/dsp-matrix.json
 ```
 
+The full suite includes `sealcrypt`. To run its focused protocol and CLI tests:
+
+```sh
+uv run --locked --extra audio --extra demo python -m unittest discover -s tests -p 'test_seal.py' -v
+```
+
+`make demo` and the browser presets exercise the rotor cipher. The focused seal
+tests exercise its own authenticated protocol and the shared Morse WAV transport;
+they do not add `sealcrypt` to the browser demo.
+
 The CI job remains named `Repository checks`, preserving the existing protection
 requirement. It installs locked dependencies and PortAudio, runs hygiene and tests,
 and executes the terminal demonstration. It does not open an audio device.
 
-Implementation validation on 2026-10-03 passed all 72 tests, repository hygiene,
-clean/noisy/lost-block terminal demos, and a complete shell pipeline through both
+Initial rotor/audio implementation validation on 2026-10-03 passed all 72 tests,
+repository hygiene, clean/noisy/lost-block terminal demos, and a complete shell pipeline through both
 CLIs with byte-for-byte output comparison. Both wheel and source distribution builds
 passed; the wheel includes public JSON resources and browser static assets.
 
-The subsequent sealcrypt implementation passed the full **95-test** suite, including
-23 new authenticated-cipher tests. Both checked and raw shell pipelines passed
+The latest recorded implementation baseline, including sealcrypt, passed the full
+**95-test** suite, including 23 new authenticated-cipher tests. Both checked and raw shell pipelines passed
 `sealcrypt → morselink WAV → morselink decode → sealcrypt` with byte-for-byte
 comparison. The original `make demo` and both package builds also passed.
 
@@ -38,9 +48,11 @@ not an independent cryptographic audit. See [sealcrypt protocol](SEALCRYPT.md).
 
 | Area | Evidence |
 | --- | --- |
-| Cipher/configuration | Independent affine vector, double-step/turnover, rings, 3–8 rotors, 10–16 plugs, malformed configurations, reciprocal reflector |
-| ASCII/streaming | All 128 bytes, arbitrary chunk boundaries, immediate raw pipe output, idle checked flush, finite batch/file input, broken pipes |
-| Checked protocol | Checksums, wrong key/machine, missing/duplicate/old/reordered frames, oversized/truncated bodies, missing end, resynchronization, sequence exhaustion, bounded errors |
+| Rotor cipher/configuration | Independent affine vector, double-step/turnover, rings, 3–8 rotors, 10–16 plugs, malformed configurations, reciprocal reflector |
+| Both cipher CLIs: ASCII/streaming | All 128 bytes, arbitrary chunk boundaries, immediate raw pipe output, idle checked flush, finite batch/file input, broken pipes |
+| Rotor checked protocol | Checksums, wrong key/machine, missing/duplicate/old/reordered frames, oversized/truncated bodies, missing end, resynchronization, sequence exhaustion, bounded errors |
+| sealcrypt authenticated protocol | Independent wire/key-derivation vectors, verified-only plaintext release, key/mode/machine binding, checked recovery, raw failure on errors, authenticated end markers, session randomness, bounds and sequence exhaustion |
+| sealcrypt keys | Strict schema, private file/directory creation, existing-path refusal, no key material in command output |
 | Audio | All 49 symbols, word spaces, independent keyed fixtures, sample rates, long silence/noise-only input, uncertainty, invalid PCM |
 | Device adapters | Mocked capture overflow, playback underrun, unavailable devices, queued drain and intentional stdin pauses; no physical hardware claim |
 | Terminal demo | Actual PCM round trips, clean/noisy/lost-block scenarios, byte comparison, decoder failure injection and exit statuses |
@@ -109,8 +121,10 @@ tests; do not replace them with synthetic successes.
 1. On Linux with PortAudio installed, record OS, audio device IDs, sample rates,
    microphone placement, volume and ambient conditions. Enumerate with
    `morselink devices`; use two processes/devices for half-duplex TX and RX.
-2. At comfortable speaker volume, transmit a public-key checked message into an
-   independent microphone receiver and compare the plaintext file byte-for-byte.
+2. At comfortable speaker volume, transmit a checked rotor message using public
+   demonstration settings into an independent microphone receiver and compare the
+   plaintext file byte-for-byte. Separately repeat with `sealcrypt` and a generated
+   test key shared by the two endpoints; use synthetic plaintext for both ciphers.
    Repeat default 700 Hz/20 WPM, then frequency/speed edges at both rates.
 3. Introduce a brief acoustic interruption: require a reported error/gap and later
    checked-block recovery. Deliberately stall capture output and verify sample-loss

@@ -42,24 +42,53 @@ rotorcrypt decrypt --machine examples/machine.json --key secrets/key.json \
 open for streaming. Files/pipes preserve NUL and control bytes. Shell arguments
 cannot carry NUL. Non-ASCII input is rejected. Diagnostics use stderr.
 
-Both commands' checked encryption flushes at a block boundary, at EOF, or after an
-idle interval (`--idle-seconds`, default 5). Checked reception releases plaintext only after
-validation. `rotorcrypt` raw mode streams immediately and keeps rotor state across
-chunks; an incomplete raw escape waits for subsequent symbols. `sealcrypt` raw
-mode emits each available input chunk as authenticated records and waits for a
-complete record before releasing plaintext. It stops on detected stream errors.
-Pauses never reset either cipher's state.
-
 Set `set -o pipefail` in Bash so an upstream failure fails the entire pipeline.
-EOF writes the checked end frame and, for `sealcrypt`, an end record in raw mode
+Encryption at EOF writes the checked end frame and, for `sealcrypt`, an end record in raw mode
 too. Ctrl-C is an interruption, not a successful finite transfer. Keep stderr
 separate from payload. Terminals usually buffer until
 Enter; use a producer writing a pipe for character-at-a-time input. Avoid `echo`
 when an extra newline is unwanted.
 
+## Raw and checked modes
+
+Raw and checked describe streaming and recovery behavior; the selected cipher
+determines the security properties. **`sealcrypt` authenticates records in both
+modes. `rotorcrypt` provides no authentication in either mode.**
+
+| Cipher and mode | Streaming behavior | Validation and recovery |
+| --- | --- | --- |
+| `rotorcrypt --mode raw` | Emits encoded cipher symbols immediately and keeps uninterrupted rotor state across chunks. | No integrity checks or end frame. Missing symbols can desynchronize the remaining stream without reliable detection. |
+| `rotorcrypt --mode checked` | Buffers plaintext into independently encrypted blocks. | Checks lengths, configuration, CRCs and sequence before releasing each block. Requires an end frame for successful completion. Reports damaged/missing blocks and resumes on later intact blocks; CRCs do not prevent forgery. |
+| `sealcrypt --mode raw` | Emits each available input chunk as one or more authenticated records. Decryption waits for a complete verified record. | Stops on detected integrity or ordering errors. Requires an authenticated end record. |
+| `sealcrypt --mode checked` | Buffers plaintext into independently authenticated records. | Releases only verified records, reports loss or damage, and resumes on later intact records. Requires an authenticated end record. |
+
+Checked mode is the default. Both ciphers flush checked encryption at
+`--block-size` plaintext bytes (default 128, allowed 1–256), after
+`--idle-seconds` without new input (default 5), or at EOF. In sealcrypt raw mode,
+`--block-size` caps record size without waiting for a full block. Pauses never
+reset either cipher's state; a partial rotor raw escape waits for more symbols.
+
+Both endpoints need matching cipher, mode, public machine configuration and the
+appropriate shared key. The same public machine JSON schema works with either
+cipher, but rotor and seal keys and wire formats are distinct. See the
+[rotor protocol](PROTOCOL.md) and [sealcrypt protocol](SEALCRYPT.md).
+
+For Morse pipelines, pair `--mode checked` with `morselink --profile checked`
+(both defaults), or pair `--mode raw` with `--profile raw` for both transmission
+and reception. `--profile text` is ordinary unencrypted Morse and normalizes case
+and whitespace; it is not an exact cipher transport.
+
+Checked recovery does not reconstruct missing content. A finite decrypt command
+returns nonzero after corruption, loss, truncation or a missing end record, even
+if later valid blocks produced plaintext. Cipher exit statuses are 0 for success,
+1 for stream integrity errors, 2 for configuration/input errors, 130 for an
+interrupt and 141 for a broken pipe. Keep diagnostics on stderr so recovery
+messages cannot enter a downstream payload stream.
+
 ## WAV, speaker and microphone
 
 ```sh
+mkdir -p tmp
 morselink devices
 morselink tx --profile text --text 'HELLO WORLD' --output-wav tmp/hello.wav
 morselink rx --profile text --input-wav tmp/hello.wav

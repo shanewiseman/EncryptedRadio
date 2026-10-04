@@ -42,3 +42,8 @@ Link relevant issues, pull requests, specifications, or research.
 - [0001: Prompt-driven development](0001-ai-assisted-development.md) — Accepted.
 - [0002: Rotor cipher, replaceable Morse transport, and working demos](0002-rotor-morse-suite.md) — Accepted.
 - [0003: Authenticated replacement cipher command](0003-authenticated-sealcrypt.md) — Accepted.
+
+ADRs 0002 and 0003 are complementary: the rotor application and its terminal/browser
+demonstrations remain implemented, while `sealcrypt` adds a separate authenticated
+CLI and protocol over the same transport. ADR 0003 does not retroactively add
+authentication to rotor ciphertext or replace the original decision record.

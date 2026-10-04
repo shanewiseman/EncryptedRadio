@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "encrypted-radio"
 version = "0.1.0"
-description = "Experimental rotor cipher and streaming Morse audio tools"
+description = "Rotor and authenticated ASCII ciphers with streaming Morse audio tools"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = ["cryptography>=46,<51"]
