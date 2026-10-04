@@ -12,6 +12,12 @@ The custom rotor construction was explicitly selected for this educational/exper
 
 Both checked protocols report loss, corruption, duplication, and reordering, validate complete blocks before releasing plaintext, and can resume with subsequent valid blocks. `rotorcrypt` raw mode deliberately lacks these checks and can silently produce incorrect output after symbol damage. `sealcrypt` raw mode still authenticates complete records and an end marker; it terminates on the first detected integrity or ordering error. Its decryption therefore waits for a complete record. Previously emitted, verified plaintext cannot be retracted if a later record fails, so callers must check exit status.
 
+For rotor checked blocks, verification means format and CRC checks, not proof of
+authenticity. For `sealcrypt`, both modes require the authentication tag to verify;
+the choice of mode changes buffering and recovery, not whether authentication is
+enabled. Both endpoints must select the same cipher and mode. See the
+[mode comparison](docs/USAGE.md#raw-and-checked-modes).
+
 The assets are plaintext, private rotor settings, shared encryption keys, and locally generated recordings. Their relevant boundaries are:
 
 - **Local files and processes:** private configurations and plaintext are visible to the invoking account and processes able to access their files, memory, terminal, or command-line arguments. The application does not defend against a compromised computer or another process running as the same user.

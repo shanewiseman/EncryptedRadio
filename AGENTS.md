@@ -48,16 +48,21 @@ Keep provider-specific instruction files as small adapters to this file.
 
 - Run `make sync` to install locked audio/demo dependencies, then `make check`
   for repository hygiene and application tests. Run `make demo` after data-path
-  changes. PortAudio is needed only for live devices.
+  changes. Node.js 18+ supplies browser lifecycle test coverage; PortAudio is needed
+  only for native live devices. `er-demo` exercises rotorcrypt; validate sealcrypt
+  changes with its tests and the WAV pipeline in `docs/SEALCRYPT.md` as appropriate.
 - Keep the shared Python cipher/DSP authoritative: browser UI and demonstrations
   must not fake decoded results or reimplement the algorithms in JavaScript.
 - Preserve stdout as payload-only, incremental state across chunks, finite-input
   integrity failures, bounded queues and explicit discontinuity reporting.
+- Preserve the distinct raw/checked semantics in `docs/USAGE.md`: sealcrypt always
+  authenticates records, while rotorcrypt checksums detect only accidental damage.
+  Neither checked mode reconstructs missing content.
 - DSP changes need reproducible fixtures. Keep synthetic results distinct from
   hardware/human-keying evidence in `docs/VALIDATION.md`.
-- As executable behavior is introduced, add reproducible setup and test commands
-  to the repository and document them here. Add tests that check meaningful behavior
-  and failure cases appropriate to the change.
+- Keep setup and test commands reproducible and current. Extend the existing
+  cipher, protocol, DSP, CLI and browser tests with meaningful behavior and failure
+  cases appropriate to the change.
 - Never invent successful test results, skip a required check without reporting it,
   or weaken validation to conceal a failure. If a tool is unavailable, state what
   could not be verified and why.

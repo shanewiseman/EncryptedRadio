@@ -2,6 +2,9 @@ name: Prompt-driven task
 description: Define a bounded change for an AI contributor.
 title: "task: "
 body:
+  - type: markdown
+    attributes:
+      value: "Read AGENTS.md and docs/TASK_TEMPLATE.md for contributor guidance. Do not include private keys, private traffic, credentials, or private prompts."
   - type: textarea
     id: outcome
     attributes:
@@ -13,7 +16,7 @@ body:
     id: context
     attributes:
       label: Context and constraints
-      description: Link relevant files or decisions. Specify scope, exclusions, dependencies, and unresolved questions.
+      description: Identify affected commands or browser operations, modes/profiles, and input sources. Link relevant files or decisions. Specify scope, exclusions, compatibility, dependencies, and unresolved questions.
     validations:
       required: true
   - type: textarea
@@ -27,4 +30,4 @@ body:
     id: risks
     attributes:
       label: Risks and validation
-      description: Note security considerations, expected checks, and any access or hardware required.
+      description: Include make check and relevant pipeline checks. make demo covers the rotor pipeline; sealcrypt needs its own round trips. Note security constraints, Node.js/browser or audio prerequisites, and whether evidence is synthetic or physical.

@@ -1,10 +1,24 @@
 name: Bug report
-description: Report a reproducible problem with the repository or its tooling.
+description: Report a reproducible problem with a command, demo, or repository tooling.
 title: "bug: "
 body:
   - type: markdown
     attributes:
-      value: "For vulnerabilities, follow SECURITY.md instead of opening a public issue. Do not include secrets or private prompts."
+      value: "For vulnerabilities, follow SECURITY.md instead of opening a public issue. Use synthetic input and public demo settings. Do not include private keys, private traffic, credentials, or private prompts."
+  - type: dropdown
+    id: component
+    attributes:
+      label: Affected component
+      options:
+        - rotorcrypt
+        - sealcrypt
+        - morselink
+        - er-demo terminal
+        - er-demo browser
+        - Repository or CI
+        - Multiple components
+    validations:
+      required: true
   - type: textarea
     id: observed
     attributes:
@@ -16,7 +30,14 @@ body:
     id: reproduce
     attributes:
       label: Reproduction
-      description: Include the commit, relevant environment, steps, and sanitized output.
+      description: Include the commit, exact command or browser steps, input source (text/file/stdin/WAV/microphone), cipher mode and Morse profile, sanitized stderr and exit status. Never attach private keys.
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment and evidence
+      description: Include OS and Python version; browser/Node.js versions if relevant. For audio, include sample rate, frequency, WPM and device, and distinguish offline WAV reproduction from physical microphone reception.
     validations:
       required: true
   - type: textarea

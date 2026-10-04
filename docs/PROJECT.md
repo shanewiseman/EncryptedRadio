@@ -8,11 +8,13 @@ Integration branch: protected `master`; rebase integration only.
 ## Implemented scope
 
 - `rotorcrypt`: configurable 49-symbol Enigma-style cipher; reversible escaping
-  preserves all 128 ASCII bytes. Raw and independently framed checked modes.
+  preserves all 128 ASCII bytes. Raw mode maintains continuous rotor state;
+  independently framed checked mode detects accidental damage and permits recovery.
 - `sealcrypt`: an authenticated alternative with the same text/file/stdin and
   streaming CLI options. ChaCha20-Poly1305 protects ASCII records, HKDF-SHA256
   derives session keys, and local key generation creates random 256-bit keys.
-  Both endpoints use its distinct protocol and key format.
+  Both raw and checked modes authenticate complete records before plaintext release.
+  Both endpoints use its distinct protocol, matching mode and private key format.
 - `morselink`: half-duplex Morse transmission/reception, streaming text pipes,
   mono WAV files and optional Linux PortAudio devices. One foreground tone at
   400–1200 Hz and 8–30 WPM, with manual overrides and automatic acquisition.
@@ -39,7 +41,11 @@ identity system, key exchange, forward secrecy or durable replay protection. See
 The suite has no retransmission, acknowledgement, FEC, station separation, RF
 hardware control or automatic repair of missing content. Checked reception reports
 missing records while allowing recovery of intact later records; callers must
-inspect finite-input exit status as well as output.
+inspect finite-input exit status as well as output. Raw `sealcrypt` reception stops
+on detected corruption or ordering errors; raw `rotorcrypt` has no equivalent
+integrity guarantee. The [mode comparison](USAGE.md#raw-and-checked-modes) explains
+latency and recovery for both commands. Changing modes does not add authentication
+to the rotor cipher or remove it from `sealcrypt`.
 
 ## Open decisions
 
