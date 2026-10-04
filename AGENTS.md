@@ -7,10 +7,13 @@ Keep provider-specific instruction files as small adapters to this file.
 
 - Development is led through human prompts and implemented with AI assistance.
   The human request defines the outcome; contributors remain responsible for the result.
-- The repository implements Python 3.12+ `rotorcrypt`, `morselink`, and `er-demo`
+- The repository implements Python 3.12+ `rotorcrypt`, `sealcrypt`, `morselink`, and `er-demo`
   under `src/encrypted_radio`. Read `docs/PROTOCOL.md` before changing the codec,
   rotor stepping or checked wire format. Enigma-style encryption is experimental;
-  never claim modern cryptographic security or authentication.
+  never claim modern cryptographic security or authentication for rotorcrypt.
+  Read `docs/SEALCRYPT.md` for the authenticated replacement. Preserve random
+  session salts, nonce uniqueness, full-context authentication, verified-only
+  plaintext release and private key handling. Application protocols remain unaudited.
 - Start with [README.md](README.md), [docs/PROJECT.md](docs/PROJECT.md),
   [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), and [CONTRIBUTING.md](CONTRIBUTING.md).
   Read [SECURITY.md](SECURITY.md) for security-related work.

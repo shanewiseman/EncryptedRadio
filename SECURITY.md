@@ -2,26 +2,30 @@
 
 ## Current status
 
-EncryptedRadio implements an experimental Enigma-style rotor cipher, a checked symbol protocol, and Morse audio demonstrations. It does **not** provide modern cryptographic security, authenticated encryption, or a supported production communications system. Passing tests establish specific functional behavior; they are not cryptanalysis, a security audit, or evidence of protection against a capable adversary.
+EncryptedRadio offers two distinct cipher commands over the same ASCII transport. `rotorcrypt` implements experimental Enigma-style encryption and does **not** provide modern cryptographic security or authentication. `sealcrypt` uses the `cryptography` implementation of ChaCha20-Poly1305 authenticated encryption, with HKDF-SHA256 session keys. Its application protocol is new and unaudited; neither command is a supported production communications system. Passing tests establish specific functional behavior, not a security audit.
 
 The custom rotor construction was explicitly selected for this educational/experimental application. CRC32 checks detect accidental transmission damage and many incorrect-key results. An attacker can recompute them. The SHA-256 block-offset derivation and public machine fingerprint do not authenticate messages or turn the rotor cipher into modern encryption.
 
+`sealcrypt` protects record confidentiality and detects record forgery or modification by parties without the shared key. It authenticates the header and public machine context before releasing plaintext or changing session/sequence state. Fresh random session salts derive independent keys, and per-session sequence nonces never wrap. Both endpoints need `sealcrypt` and a new random 256-bit key; rotor keys and ciphertext are incompatible. See the [authenticated protocol and threat model](docs/SEALCRYPT.md).
+
 ## Threat model and boundaries
 
-The implemented checked protocol targets accidental loss, corruption, duplication, and reordering on a single foreground audio channel. It validates complete blocks before releasing their plaintext and can resume with subsequent valid blocks. Raw mode deliberately lacks these checks and can silently produce incorrect output after symbol damage.
+Both checked protocols report loss, corruption, duplication, and reordering, validate complete blocks before releasing plaintext, and can resume with subsequent valid blocks. `rotorcrypt` raw mode deliberately lacks these checks and can silently produce incorrect output after symbol damage. `sealcrypt` raw mode still authenticates complete records and an end marker; it terminates on the first detected integrity or ordering error. Its decryption therefore waits for a complete record. Previously emitted, verified plaintext cannot be retracted if a later record fails, so callers must check exit status.
 
-The assets are plaintext, private rotor settings, and locally generated recordings. Their relevant boundaries are:
+The assets are plaintext, private rotor settings, shared encryption keys, and locally generated recordings. Their relevant boundaries are:
 
 - **Local files and processes:** private configurations and plaintext are visible to the invoking account and processes able to access their files, memory, terminal, or command-line arguments. The application does not defend against a compromised computer or another process running as the same user.
-- **The symbol/audio channel:** session identifiers, sequence numbers, lengths, public machine fingerprints, plaintext CRCs, timing, and ciphertext are exposed. Acoustic transmissions can be recorded. No traffic-analysis protection is claimed.
-- **An active sender or attacker:** message injection, modification, forgery, replay across restarts, denial of service, and deliberate session disruption are outside the protocol's security guarantees. The 64-session in-memory duplicate cache is operational bookkeeping, not authentication or durable replay prevention.
-- **The local browser demo:** browser input and imported key settings are passed to a local Python process. The demo is a trusted local tool, not a multi-user service or a remotely deployable application.
+- **The symbol/audio channel:** session identifiers, sequence numbers, lengths, public machine fingerprints, timing, and ciphertext are exposed. The rotor checked protocol additionally exposes plaintext CRCs; `sealcrypt` does not transmit them. Acoustic transmissions can be recorded. No traffic-analysis protection is claimed.
+- **An active sender or attacker:** `rotorcrypt` cannot prevent message injection, modification or forgery. `sealcrypt` authenticates each record against parties without the key, but shared-key possession does not identify an individual sender. Neither protocol prevents replay of a complete valid recording to a fresh receiver, denial of service, or deliberate suppression of messages. The 64-session in-memory duplicate caches are bounded stream bookkeeping, not durable replay prevention. A checked receiver may release intact later records after reporting missing content.
+- **The local browser demo:** browser input and imported rotor key settings are passed to a local Python process. The browser and `er-demo` continue to demonstrate the rotor cipher; they do not expose `sealcrypt`. The demo is a trusted local tool, not a multi-user service or a remotely deployable application.
 
-There is no identity system, authenticated key exchange, managed key generation/rotation/revocation, forward secrecy, or secure deletion. Reusing settings or publishing ciphertext does not imply any quantified security strength. Use a reviewed authenticated-encryption design and a new threat model if an application needs confidentiality or authenticity against adversaries.
+`sealcrypt keygen` generates random shared keys locally, but there is no identity system, authenticated key exchange, managed key distribution/rotation/revocation, forward secrecy, or secure deletion. Key holders must share keys through a separately trusted channel. Compromise of a shared key permits decryption of recorded sessions that used it. Production deployment requires review of the application protocol and its operational threat model.
 
 ## Public examples and private data
 
 The [example key](examples/example-key.json), bundled key resource, example rotor catalog, and test settings are intentionally public. Demo defaults use these public values. `rotorcrypt` requires explicit machine and key paths so command-line users choose their settings deliberately; selecting the example file still uses a public key.
+
+`sealcrypt` also requires explicit machine and key paths. Generate a fresh private key with `sealcrypt keygen --key secrets/seal-key.json`; it creates a mode-0600 file, creates missing parent directories with mode 0700, and refuses to overwrite an existing path. It does not print key material. Do not use public test fixtures as private keys or substitute a password for the required random key bytes.
 
 Keep real key files under the ignored `secrets/` directory and set appropriate filesystem permissions. Git ignore rules do not encrypt files or prevent access by other programs. Do not commit live keys, credentials, `.env` files, private captures, or raw prompts containing secrets. Avoid putting private plaintext directly in `--text` when command-line argument exposure matters; use a protected file or pipe instead.
 

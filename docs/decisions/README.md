@@ -41,3 +41,4 @@ Link relevant issues, pull requests, specifications, or research.
 
 - [0001: Prompt-driven development](0001-ai-assisted-development.md) — Accepted.
 - [0002: Rotor cipher, replaceable Morse transport, and working demos](0002-rotor-morse-suite.md) — Accepted.
+- [0003: Authenticated replacement cipher command](0003-authenticated-sealcrypt.md) — Accepted.
