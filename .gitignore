@@ -1,0 +1,39 @@
+# Local credentials and machine-specific configuration
+.env
+.env.*
+!.env.example
+!.env.*.example
+*.pem
+*.key
+secrets/
+
+# Local AI context, transcripts, and tool state
+.codex/
+.claude/
+.cursor/
+.ai-local/
+AGENTS.override.md
+CLAUDE.local.md
+
+# Editor and operating system artifacts
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Bootstrap tooling caches and generated output
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+coverage/
+build/
+dist/
+tmp/
+*.log

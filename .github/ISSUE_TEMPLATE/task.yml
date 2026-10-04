@@ -1,0 +1,30 @@
+name: Prompt-driven task
+description: Define a bounded change for an AI contributor.
+title: "task: "
+body:
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Desired outcome
+      description: State the problem and who benefits. Include a sanitized prompt summary if useful.
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Context and constraints
+      description: Link relevant files or decisions. Specify scope, exclusions, dependencies, and unresolved questions.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: List observable outcomes and how they should be verified.
+    validations:
+      required: true
+  - type: textarea
+    id: risks
+    attributes:
+      label: Risks and validation
+      description: Note security considerations, expected checks, and any access or hardware required.

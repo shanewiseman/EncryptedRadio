@@ -1,0 +1,28 @@
+name: Bug report
+description: Report a reproducible problem with the repository or its tooling.
+title: "bug: "
+body:
+  - type: markdown
+    attributes:
+      value: "For vulnerabilities, follow SECURITY.md instead of opening a public issue. Do not include secrets or private prompts."
+  - type: textarea
+    id: observed
+    attributes:
+      label: Observed behavior
+      description: What happened, and what did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproduction
+      description: Include the commit, relevant environment, steps, and sanitized output.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: What observable result would demonstrate the fix?
+    validations:
+      required: true
