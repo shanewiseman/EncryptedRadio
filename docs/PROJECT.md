@@ -1,38 +1,40 @@
 # Project brief
 
-## Status
+EncryptedRadio is developed through human-directed LLM/AI prompts. The accepted
+initial implementation is a Linux-first Python 3.12+ suite with terminal and local
+browser demonstrations. Maintainer: [@shanewiseman](https://github.com/shanewiseman).
+Integration branch: protected `master`; rebase integration only.
 
-EncryptedRadio is a new project developed exclusively through LLM/AI prompts. The current repository establishes its working practices. The project name suggests an interest in encrypted radio communication, but it does not establish a product specification or security guarantee.
+## Implemented scope
 
-Maintainer: [@shanewiseman](https://github.com/shanewiseman). Default integration branch: `master`.
+- `rotorcrypt`: configurable 49-symbol Enigma-style cipher; reversible escaping
+  preserves all 128 ASCII bytes. Raw and independently framed checked modes.
+- `morselink`: half-duplex Morse transmission/reception, streaming text pipes,
+  mono WAV files and optional Linux PortAudio devices. One foreground tone at
+  400–1200 Hz and 8–30 WPM, with manual overrides and automatic acquisition.
+- `er-demo`: actual cipher → PCM → DSP → cipher round trips, including noise and
+  removed-audio-block fixtures. Local aiohttp browser UI uses the same code.
+- Bounded buffers, explicit discontinuity reporting, finite-input integrity status,
+  deterministic automated tests, lockfile installation and CI.
 
-## Confirmed constraints
+## Acceptance boundaries
 
-- Direct development through prompts with explicit objectives and reviewable acceptance criteria.
-- Keep AI instructions and project decisions in version control.
-- Use focused changes, repeatable checks, and evidence-backed review.
-- Keep `master` protected with linear history and rebase integration, subject to the documented owner exception and the [GitHub configuration](GITHUB.md) being applied.
-- Establish scope and security requirements before implementing a radio or cryptographic system.
+Tests verify synthetic signals, format errors, streaming behavior, resource limits
+and local web requests. They do not establish real speaker/microphone, radio or
+human-keying compatibility. Physical acceptance procedures and current evidence
+are in [VALIDATION.md](VALIDATION.md).
 
-## Decisions needed before implementation
+Enigma-style encryption is deliberately educational. There is no authentication,
+modern confidentiality guarantee, retransmission, acknowledgement, FEC, station
+separation, RF hardware control or automatic repair of missing content. A fresh
+session ID limits accidental block-state reuse; it does not make the cipher secure.
 
-| Area | Questions to resolve |
-| --- | --- |
-| Users and use cases | Who will use the system, in what environment, and what problem must it solve? |
-| Product boundary | Is this software, firmware, hardware, a simulator, or some combination? |
-| Radio platform | Which hardware, bands, modulation, transport, and interoperability requirements apply? |
-| Operating constraints | What jurisdiction, licensing, permitted operating modes, power limits, and encryption restrictions apply to the intended use? |
-| Security | What assets and adversaries matter, and what properties must be demonstrated? |
-| Key lifecycle | How are identities and keys provisioned, protected, rotated, revoked, and recovered? |
-| Implementation | Which language, toolchain, dependencies, and target platforms are appropriate? |
-| Quality | What latency, reliability, resource, interoperability, and test requirements define acceptance? |
-| Delivery | How will builds, updates, releases, and support be managed? |
-| License | Which license and contribution terms should the project adopt? |
+## Open decisions
 
-These questions are intentionally unanswered. A prompt must not silently turn an assumption into a requirement.
+Licensing remains undecided. Real deployment, RF hardware, bands, operating rules,
+identity/key distribution, authenticated cryptography and release support require
+separate requirements. The audio demo does not choose those policies.
 
-## First implementation gate
-
-Before introducing an application skeleton or selecting application dependencies, accept a bounded initial use case, identify its platform and testing environment, and record relevant architecture and security decisions. Start with a testable increment that satisfies the agreed scope.
-
-Track concrete work in issues or pull requests using [TASK_TEMPLATE.md](TASK_TEMPLATE.md). Record consequential accepted decisions in [decisions/](decisions/README.md), and update this brief when scope changes.
+Future changes must preserve the transport's ASCII interface or explicitly version
+it. Keep accepted requirements, evidence and limitations in version control rather
+than relying on chat history. Start substantial work from [TASK_TEMPLATE.md](TASK_TEMPLATE.md).

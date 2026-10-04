@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "rotors": [
+    "I",
+    "II",
+    "III"
+  ],
+  "positions": [
+    3,
+    17,
+    29
+  ],
+  "rings": [
+    0,
+    4,
+    8
+  ],
+  "plugboard": [
+    "AZ",
+    "BY",
+    "CX",
+    "DW",
+    "EV",
+    "FU",
+    "GT",
+    "HS",
+    "IR",
+    "JQ",
+    "KP",
+    "LO"
+  ]
+}
