@@ -40,3 +40,4 @@ Link relevant issues, pull requests, specifications, or research.
 ## Index
 
 - [0001: Prompt-driven development](0001-ai-assisted-development.md) — Accepted.
+- [0002: Rotor cipher, replaceable Morse transport, and working demos](0002-rotor-morse-suite.md) — Accepted.

@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>EncryptedRadio · Signal workshop</title>
+  <link rel="stylesheet" href="/static/styles.css">
+  <script type="module" src="/static/app.js"></script>
+</head>
+<body>
+  <header class="masthead">
+    <a class="brand" href="/" aria-label="EncryptedRadio home"><span class="brand-mark" aria-hidden="true">ER</span><span>EncryptedRadio<small>THE SIGNAL WORKSHOP</small></span></a>
+    <span class="local-badge"><span class="status-dot"></span> Local session</span>
+  </header>
+  <main>
+    <section class="intro">
+      <div><p class="eyebrow">TEXT → ROTORS → SOUND → TEXT</p><h1>Make a message audible.</h1><p class="lede">Explore a configurable rotor machine, send its output as Morse, and recover the message through the real audio decoder.</p></div>
+      <div class="signal-art" aria-hidden="true"><i></i><i></i><i></i><b></b><i></i><b></b><i></i><i></i><b></b><i></i><i></i></div>
+    </section>
+    <div class="workspace">
+      <section class="card composer" aria-labelledby="compose-title">
+        <div class="card-heading"><span class="step">01</span><h2 id="compose-title">Compose & configure</h2><span id="byte-count" class="muted">0 / 512 bytes</span></div>
+        <label for="plaintext">Your message</label>
+        <textarea id="plaintext" rows="5" maxlength="512" spellcheck="false">Hello, radio!
+</textarea>
+        <p class="field-note">ASCII only. Cipher modes preserve case, punctuation, spaces, and newlines.</p>
+        <div class="columns three">
+          <div><label for="mode">Mode</label><select id="mode"><option value="checked">Checked cipher</option><option value="raw">Raw cipher</option><option value="text">Plain Morse</option></select></div>
+          <div><label for="scenario">Offline channel</label><select id="scenario"><option value="clean">Clean signal</option><option value="noisy">Noisy signal</option><option value="lost-block">Lost block</option></select></div>
+          <div><label for="wpm">Speed <span class="unit">WPM</span></label><input id="wpm" type="number" value="20" min="8" max="30" step="1"></div>
+        </div>
+        <div class="columns three audio-settings">
+          <div><label for="frequency">Pitch <span class="unit">Hz</span></label><input id="frequency" type="number" value="700" min="400" max="1200" step="10"></div>
+          <div><label for="rx-frequency">Receive pitch <span class="unit">Hz</span></label><input id="rx-frequency" type="number" min="400" max="1200" placeholder="Automatic"></div>
+          <div><label for="rx-wpm">Receive speed <span class="unit">WPM</span></label><input id="rx-wpm" type="number" min="8" max="30" placeholder="Automatic"></div>
+        </div>
+        <details class="machine-config">
+          <summary>Rotor machine <span id="rotor-summary">Loading example configuration…</span></summary>
+          <p class="field-note">Public demonstration settings. Never use this experimental cipher for sensitive communications.</p>
+          <div class="rotor-heading"><span>Order: left → right</span><button id="add-rotor" type="button" class="small">+ Add rotor</button></div>
+          <div id="rotors"></div>
+          <label for="plugboard">Plugboard pairs <span class="unit">10–16 disjoint cables</span></label>
+          <input id="plugboard" type="text" spellcheck="false" aria-describedby="plugboard-help">
+          <p id="plugboard-help" class="field-note">Separate two-character pairs with spaces. Positions and rings are zero-based alphabet indices (0–48).</p>
+          <div class="columns two imports"><label class="file-label">Import machine JSON<input id="machine-file" type="file" accept=".json,application/json"></label><label class="file-label">Import key JSON<input id="key-file" type="file" accept=".json,application/json"></label></div>
+          <p class="field-note">Configuration stays in this session. Nothing is stored in your browser.</p>
+        </details>
+        <div class="actions"><button id="run" class="primary" type="button" disabled><span aria-hidden="true">↗</span> Run offline round trip</button><label class="upload-button">Decode a WAV<input id="wav-file" type="file" accept=".wav,audio/wav"></label></div>
+        <p class="field-note">Offline processing is faster than playback and needs no audio hardware. WAV uploads: PCM16, 44.1 / 48 kHz, mono or stereo, up to 64 MiB.</p>
+      </section>
+      <aside class="side-stack">
+        <section class="card channel" aria-labelledby="channel-title">
+          <div class="card-heading"><span class="step">02</span><h2 id="channel-title">Audio channel</h2><span id="channel-tag" class="tag">OFFLINE</span></div>
+          <div class="duration"><span id="duration">—</span><small>TRANSMISSION DURATION</small></div>
+          <div class="waveform" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
+          <audio id="playback" controls preload="none" aria-label="Play generated Morse audio"></audio>
+          <a id="download" class="download disabled" download="morse.wav" aria-disabled="true">↓ Download WAV</a>
+          <p id="audio-note" class="field-note">Run a round trip to create a playable waveform.</p>
+        </section>
+        <section class="card live" aria-labelledby="live-title">
+          <div class="card-heading"><h2 id="live-title">Try the hardware</h2><span class="tag outline">LIVE</span></div>
+          <p class="field-note">Transmit through your speakers or receive through your microphone. One direction at a time.</p>
+          <label class="check-label"><input id="streaming" type="checkbox"> Keep transmission open for more text</label>
+          <div class="columns two"><button id="live-tx" type="button" disabled>Prepare transmission</button><button id="live-rx" type="button" disabled>Receive microphone</button></div>
+          <button id="begin" class="primary full" type="button" hidden>Play transmission</button>
+          <div id="stream-controls" hidden><label for="stream-text">Append to the open stream</label><textarea id="stream-text" rows="2" spellcheck="false"></textarea><div class="columns two"><button id="send-chunk" type="button">Send text</button><button id="end-stream" type="button">Finish stream</button></div></div>
+          <div class="columns two live-controls"><button id="finish-rx" type="button" disabled>Finish reception</button><button id="stop" class="danger" type="button" disabled>Stop</button></div>
+          <p class="field-note">Microphone access starts only when you request it. Live hardware results are separate from offline verification.</p>
+        </section>
+      </aside>
+    </div>
+    <section class="card results" aria-labelledby="result-title">
+      <div class="card-heading"><span class="step">03</span><h2 id="result-title">Follow the message</h2><span id="verification" class="tag">READY</span></div>
+      <div id="status" role="status" aria-live="polite">Ready. Start with the public example settings or import your own configuration.</div>
+      <div class="stage-grid">
+        <div class="stage"><h3><span>01</span> Transmitted symbols</h3><pre id="ciphertext" tabindex="0">Your cipher output will appear here.</pre></div>
+        <div class="stage"><h3><span>02</span> Decoded audio</h3><pre id="received" tabindex="0">Symbols recovered from the actual waveform.</pre></div>
+        <div class="stage recovered"><h3><span>03</span> Recovered message</h3><pre id="recovered" tabindex="0">Your recovered plaintext will appear here.</pre></div>
+      </div>
+      <details id="diagnostics-wrap" hidden><summary>Decoder diagnostics</summary><pre id="diagnostics"></pre></details>
+    </section>
+    <footer><p><strong>Experimental by design.</strong> Rotor encryption is not modern cryptographic security. Checksums detect accidental damage, not deliberate tampering.</p><span>LOCAL ONLY · NO CLOUD SERVICES</span></footer>
+  </main>
+</body>
+</html>

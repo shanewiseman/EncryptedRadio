@@ -7,9 +7,10 @@ Keep provider-specific instruction files as small adapters to this file.
 
 - Development is led through human prompts and implemented with AI assistance.
   The human request defines the outcome; contributors remain responsible for the result.
-- The repository starts with governance, documentation, and validation tooling.
-  No application, runtime, radio protocol, cryptographic design, or hardware platform
-  has been selected. Do not describe planned capabilities as implemented.
+- The repository implements Python 3.12+ `rotorcrypt`, `morselink`, and `er-demo`
+  under `src/encrypted_radio`. Read `docs/PROTOCOL.md` before changing the codec,
+  rotor stepping or checked wire format. Enigma-style encryption is experimental;
+  never claim modern cryptographic security or authentication.
 - Start with [README.md](README.md), [docs/PROJECT.md](docs/PROJECT.md),
   [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), and [CONTRIBUTING.md](CONTRIBUTING.md).
   Read [SECURITY.md](SECURITY.md) for security-related work.
@@ -42,8 +43,15 @@ Keep provider-specific instruction files as small adapters to this file.
 
 ## Validation
 
-- Run `make check` from the repository root for the baseline repository checks.
-  It uses Python's standard library; this is repository validation, not application testing.
+- Run `make sync` to install locked audio/demo dependencies, then `make check`
+  for repository hygiene and application tests. Run `make demo` after data-path
+  changes. PortAudio is needed only for live devices.
+- Keep the shared Python cipher/DSP authoritative: browser UI and demonstrations
+  must not fake decoded results or reimplement the algorithms in JavaScript.
+- Preserve stdout as payload-only, incremental state across chunks, finite-input
+  integrity failures, bounded queues and explicit discontinuity reporting.
+- DSP changes need reproducible fixtures. Keep synthetic results distinct from
+  hardware/human-keying evidence in `docs/VALIDATION.md`.
 - As executable behavior is introduced, add reproducible setup and test commands
   to the repository and document them here. Add tests that check meaningful behavior
   and failure cases appropriate to the change.

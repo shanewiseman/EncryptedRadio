@@ -13,7 +13,7 @@ Specify the desired behavior, constraints, acceptance criteria, and verification
 1. Start a focused branch from the current `master`, using a descriptive name such as `codex/define-project-requirements`.
 2. Direct the agent to inspect existing files and relevant instructions before editing.
 3. Keep changes limited to the task. Update documentation and add an [architecture decision record](docs/decisions/README.md) when a consequential decision is made.
-4. Run `make check` with Python 3.12+ and Make, plus any additional checks required by the changed behavior. The baseline tooling uses only Python's standard library and does not select the application's runtime. Add meaningful tests when there is behavior to verify.
+4. Run `make sync` and `make check` with Python 3.12+, uv and Make, plus `make demo` for data-path changes. Locked extras supply the test dependencies; offline tests do not need PortAudio or a microphone. Add meaningful failure cases and distinguish synthetic evidence from physical hardware validation.
 5. Review the diff for correctness, secrets, unrelated changes, and unsupported claims.
 6. Open a pull request that states the problem, resulting behavior, acceptance criteria, test evidence, and any unresolved limitations.
 7. Address review feedback and rebase onto the current `master` as needed. Integrate using GitHub's **Rebase and merge** action.

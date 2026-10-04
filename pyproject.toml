@@ -1,0 +1,26 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "encrypted-radio"
+version = "0.1.0"
+description = "Experimental rotor cipher and streaming Morse audio tools"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = []
+
+[project.optional-dependencies]
+audio = ["numpy>=2.2,<3", "scipy>=1.15,<2", "sounddevice>=0.5,<1"]
+demo = ["aiohttp>=3.12,<4", "numpy>=2.2,<3", "scipy>=1.15,<2"]
+
+[project.scripts]
+rotorcrypt = "encrypted_radio.rotor_cli:main"
+morselink = "encrypted_radio.morse_cli:main"
+er-demo = "encrypted_radio.demo:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/encrypted_radio"]
+
+[tool.uv]
+package = true

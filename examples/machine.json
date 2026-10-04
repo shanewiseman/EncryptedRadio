@@ -1,0 +1,58 @@
+{
+  "version": 1,
+  "alphabet": "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.,:?'/-()\"=+@",
+  "rotors": {
+    "I": {
+      "wiring": "J/:IZ,XBSHR69=LMVN8KQ)G@UYEDF'1A45T7?(30W\"C-P.2+O",
+      "notches": [
+        7
+      ]
+    },
+    "II": {
+      "wiring": "78HOXE6L3+:Q0?9G'24ZDWIV=TM(Y1SJN@CU/FKRBA5\"P-.,)",
+      "notches": [
+        14
+      ]
+    },
+    "III": {
+      "wiring": "OL32(0HKG57:\"6)Z,'DY+P@XE8C?4WBSUIQ9J.RN/A=1-FMVT",
+      "notches": [
+        21
+      ]
+    },
+    "IV": {
+      "wiring": "8O65)I\"D,SYJMQ?ZP0E+H=.X-BNVT:7WUF3L1GA/KR'29@4(C",
+      "notches": [
+        28
+      ]
+    },
+    "V": {
+      "wiring": "O3W?\"@-TR5UNYKE4,2ZS6L+(VAXCQ90J.BPG/M1D7=H'8F):I",
+      "notches": [
+        35
+      ]
+    },
+    "VI": {
+      "wiring": "0:SU),@EHGQ+Z-W'?9.KF\"/=MINL471JV5RBY8T36(OPXDAC2",
+      "notches": [
+        15,
+        35
+      ]
+    },
+    "VII": {
+      "wiring": "\"87)Q0L:.WYAM5VG?=T9N+2P'-1EF4/HJZ3(X,U6BSKCDORI@",
+      "notches": [
+        18,
+        36
+      ]
+    },
+    "VIII": {
+      "wiring": "PS6(KLJN?Q)T-.MX057DUA2HOW1',/E4BF3\"@=8CY+V:IZRG9",
+      "notches": [
+        21,
+        37
+      ]
+    }
+  },
+  "reflector": "OP5.J':47E6@-1AB?,+V0T(/=ZUN8)HCKI2\"DRGQFXMW39YSL"
+}
