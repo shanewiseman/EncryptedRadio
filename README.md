@@ -1,14 +1,17 @@
 # EncryptedRadio
 
-Two composable Linux-first Python applications: **rotorcrypt** preserves every ASCII
-byte through a configurable Enigma-style cipher; **morselink** transmits and receives
-their text through Morse audio. **er-demo** demonstrates the complete pipeline in
+Composable Linux-first Python applications: **rotorcrypt** preserves every ASCII
+byte through a configurable Enigma-style cipher; **sealcrypt** offers authenticated
+ChaCha20-Poly1305 encryption with the same CLI and streaming options; **morselink**
+transmits and receives their text through Morse audio. **er-demo** demonstrates the rotor pipeline in
 the terminal and a local browser. A different transport can replace morselink by
 preserving the ASCII character stream.
 
-This is experimental historical-style encryption, **not modern cryptographic
-security**. CRCs detect accidental corruption; they do not authenticate a sender.
-Public demonstration keys provide no secrecy. See [security limitations](SECURITY.md).
+The rotor cipher is experimental historical-style encryption, **not modern
+cryptographic security**. Its CRCs detect accidental corruption, not forgery.
+`sealcrypt` verifies authentication tags before releasing plaintext, using a separate
+256-bit key. Neither application protocol has been independently audited. Public
+demonstration keys provide no secrecy. See [security limitations](SECURITY.md).
 
 ## Install and run
 
@@ -43,7 +46,26 @@ The loss demo removes the actual audio for one 16-byte plaintext block. It succe
 when the receiver reports the missing block and recovers later blocks. Its report
 explicitly says that the original message did not match in full.
 
-## Compose the applications
+## Authenticated encryption with sealcrypt
+
+Generate a new key, then substitute `sealcrypt` for `rotorcrypt` at both ends:
+
+```sh
+sealcrypt keygen --key secrets/seal-key.json
+set -o pipefail
+sealcrypt encrypt --machine examples/machine.json --key secrets/seal-key.json \
+  | morselink tx
+morselink rx \
+  | sealcrypt decrypt --machine examples/machine.json --key secrets/seal-key.json
+```
+
+It accepts the same `--text`, `--input`, stdin, mode, block-size and idle options.
+The public machine file is authenticated context; its rotors are not used for
+encryption. Rotor key files/ciphertext cannot be reused. Raw mode flushes immediately
+but still authenticates complete records before decryption releases their contents.
+See [sealcrypt usage and protocol](docs/SEALCRYPT.md) for key handling and boundaries.
+
+## Compose the rotor applications
 
 The example key is public and intended only for demonstrations. Create a local key
 under ignored `secrets/` using the [configuration format](docs/PROTOCOL.md).
@@ -89,6 +111,7 @@ reconstructing it. See [operation and installation](docs/USAGE.md).
 
 - [Project scope and acceptance status](docs/PROJECT.md)
 - [Architecture](docs/ARCHITECTURE.md) and [protocol/configuration](docs/PROTOCOL.md)
+- [Authenticated encryption with sealcrypt](docs/SEALCRYPT.md)
 - [Reproducible validation and hardware checklist](docs/VALIDATION.md)
 - [AI contributor guidance](AGENTS.md) and [contributing](CONTRIBUTING.md)
 - [Architecture decisions](docs/decisions/README.md)

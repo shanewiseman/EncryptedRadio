@@ -20,6 +20,20 @@ clean/noisy/lost-block terminal demos, and a complete shell pipeline through bot
 CLIs with byte-for-byte output comparison. Both wheel and source distribution builds
 passed; the wheel includes public JSON resources and browser static assets.
 
+The subsequent sealcrypt implementation passed the full **95-test** suite, including
+23 new authenticated-cipher tests. Both checked and raw shell pipelines passed
+`sealcrypt → morselink WAV → morselink decode → sealcrypt` with byte-for-byte
+comparison. The original `make demo` and both package builds also passed.
+
+The seal tests include fixed wire vectors with independent HMAC-based HKDF
+derivation, all ASCII/chunk combinations, authentication failures, wrong keys and
+contexts, loss/reordering/recovery, raw failure behavior, truncation/end markers,
+sequence exhaustion, bounded parsing, private key permissions/no-overwrite, CLI
+idle/immediate streaming, argument ordering, interruptions and broken pipes. A
+separate review exercised all 536 single-bit mutations of one packet and 676
+truncated checked/raw streams. This is functional/security regression evidence,
+not an independent cryptographic audit. See [sealcrypt protocol](SEALCRYPT.md).
+
 ## Automated acceptance coverage
 
 | Area | Evidence |

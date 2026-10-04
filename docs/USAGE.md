@@ -3,8 +3,9 @@
 ## Environment
 
 Install Python 3.12+, Make and [uv](https://docs.astral.sh/uv/getting-started/installation/).
-`make sync` installs the locked `audio` and `demo` extras. The cipher uses the
-standard library; `uv sync --locked` installs a cipher-only environment.
+`make sync` installs the locked `audio` and `demo` extras. `uv sync --locked`
+installs both cipher CLIs and their base `cryptography` dependency without audio
+or browser dependencies. The rotor implementation itself uses the standard library.
 `uv sync --locked --extra demo` supports browser/WAV operation without PortAudio.
 Linux live hardware needs the distribution's PortAudio runtime (Debian/Ubuntu:
 `sudo apt-get install libportaudio2`) and the `audio` extra.
@@ -18,6 +19,13 @@ Activate with `. .venv/bin/activate`, or prefix commands with
 `make UV=/absolute/path/to/uv demo`. All tools support `--help`.
 
 ## Cipher streams
+
+`rotorcrypt` provides the historical-style cipher shown below. For authenticated
+encryption, use `sealcrypt` with the same input/output options and a freshly
+generated shared key. Its [usage, key generation and protocol guide](SEALCRYPT.md)
+explains the compatible pipelines, distinct key format and security boundaries.
+Both endpoints must use `sealcrypt`; existing rotor keys and ciphertext cannot be
+converted by changing the executable name alone.
 
 ```sh
 mkdir -p secrets tmp
@@ -34,14 +42,18 @@ rotorcrypt decrypt --machine examples/machine.json --key secrets/key.json \
 open for streaming. Files/pipes preserve NUL and control bytes. Shell arguments
 cannot carry NUL. Non-ASCII input is rejected. Diagnostics use stderr.
 
-Checked encryption flushes at a block boundary, at EOF, or after an idle interval
-(`--idle-seconds`, default 5). Checked reception releases plaintext only after
-validation. Raw mode streams immediately and keeps rotor state across chunks.
-An incomplete raw escape waits for subsequent symbols. Pauses never reset cipher state.
+Both commands' checked encryption flushes at a block boundary, at EOF, or after an
+idle interval (`--idle-seconds`, default 5). Checked reception releases plaintext only after
+validation. `rotorcrypt` raw mode streams immediately and keeps rotor state across
+chunks; an incomplete raw escape waits for subsequent symbols. `sealcrypt` raw
+mode emits each available input chunk as authenticated records and waits for a
+complete record before releasing plaintext. It stops on detected stream errors.
+Pauses never reset either cipher's state.
 
 Set `set -o pipefail` in Bash so an upstream failure fails the entire pipeline.
-EOF writes the checked end frame; Ctrl-C is an interruption, not a successful
-finite transfer. Keep stderr separate from payload. Terminals usually buffer until
+EOF writes the checked end frame and, for `sealcrypt`, an end record in raw mode
+too. Ctrl-C is an interruption, not a successful finite transfer. Keep stderr
+separate from payload. Terminals usually buffer until
 Enter; use a producer writing a pipe for character-at-a-time input. Avoid `echo`
 when an extra newline is unwanted.
 
@@ -68,6 +80,10 @@ expecting language correction. `--frequency` selects a known tone;
 rate and accepts mono uncompressed integer PCM.
 
 ## Demonstrations
+
+`er-demo` and its browser rotor controls demonstrate `rotorcrypt`. Use the offline
+WAV pipeline in the [sealcrypt guide](SEALCRYPT.md) to exercise authenticated
+encryption through the same Morse encoder and audio decoder.
 
 ```sh
 make demo

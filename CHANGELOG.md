@@ -6,6 +6,9 @@ Record notable user-visible changes here. Keep unreleased work under **Unrelease
 
 ### Added
 
+- `sealcrypt`, a ChaCha20-Poly1305 replacement CLI with the same ASCII/file/stdin
+  interface, raw/checked streaming modes, authenticated records, private key
+  generation and Morse compatibility.
 - Initial repository guidance for prompt-driven development, contribution review, security reporting, and project decisions.
 - Baseline repository checks and declarative GitHub configuration support.
 

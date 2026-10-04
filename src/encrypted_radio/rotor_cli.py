@@ -4,27 +4,12 @@ from __future__ import annotations
 import argparse
 from contextlib import nullcontext
 import os
-import select
 import sys
-from typing import BinaryIO, Iterator
 
 from .cipher import RawDecoder, RawEncoder
 from .config import load_key, load_machine
 from .framing import CheckedDecoder, CheckedEncoder
-
-
-def _chunks(stream: BinaryIO, idle_seconds: float | None = None) -> Iterator[bytes | None]:
-    """Read available bytes without waiting for a full buffered chunk or a newline."""
-    descriptor = stream.fileno()
-    while True:
-        ready, _, _ = select.select([descriptor], [], [], idle_seconds)
-        if not ready:
-            yield None
-            continue
-        data = os.read(descriptor, 4096)
-        if not data:
-            return
-        yield data
+from .streams import iter_chunks as _chunks
 
 
 def main(argv: list[str] | None = None) -> int:
